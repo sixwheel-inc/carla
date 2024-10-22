@@ -420,11 +420,16 @@ class KeyboardControl(object):
                     world.player.enable_carsim()
                 elif event.key == K_o and (pygame.key.get_mods() & KMOD_CTRL):
                     print("o pressed")
-                    vehicle_json = "sedan/vehicle/Sedan_Vehicle.json"
-                    powertrain_json = "sedan/powertrain/Sedan_SimpleMapPowertrain.json"
-                    tire_json = "sedan/tire/Sedan_TMeasyTire.json"
-                    base_path = "~/carla/Build/chrono-install/share/chrono/data/vehicle/"
-                    world.player.enable_chrono_physics(5000, 0.002, vehicle_json, powertrain_json, tire_json, base_path)
+                    if not self._chrono_enabled:
+                        self._chrono_enabled = True
+                        vehicle_json = "sedan\\vehicle\\Sedan_Vehicle.json"
+                        powertrain_json = "sedan\\powertrain\\Sedan_SimpleMapPowertrain.json"
+                        tire_json = "sedan\\tire\\Sedan_TMeasyTire.json"
+                        base_path = "C:\\sixwheel\\carla\\Build\\chrono-install\\data\\vehicle\\"
+                        world.player.enable_chrono_physics(5000, 0.002, vehicle_json, powertrain_json, tire_json, base_path)
+                    else:
+                        self._chrono_enabled = False
+                        world.player.restore_physx_physics()
                 elif event.key == K_j and (pygame.key.get_mods() & KMOD_CTRL):
                     self._carsim_road = not self._carsim_road
                     world.player.use_carsim_road(self._carsim_road)
