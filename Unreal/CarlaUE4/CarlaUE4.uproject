@@ -1,6 +1,6 @@
 {
 	"FileVersion": 3,
-	"EngineAssociation": "4.26",
+	"EngineAssociation": "{BD13768D-4DEB-F52E-E8BB-3DB3730067EE}",
 	"Category": "",
 	"Description": "",
 	"Modules": [
@@ -123,6 +123,14 @@
 		},
 		{
 			"Name": "HairStrands",
+			"Enabled": true
+		},
+		{
+			"Name": "StreetMap",
+			"Enabled": true
+		},
+		{
+			"Name": "HoudiniEngine",
 			"Enabled": true
 		}
 	]
