@@ -87,6 +87,10 @@ namespace client {
     return _episode.Lock()->GetWeatherParameters();
   }
 
+  void World::EnableMultiVehicleChrono(const std::vector<ActorId>& vehicle_ids) const {
+    log_warning("World::EnableMultiVehicleChrono is not implemented yet.");
+  }
+
   void World::SetWeather(const rpc::WeatherParameters &weather) {
     _episode.Lock()->SetWeatherParameters(weather);
   }

@@ -323,6 +323,7 @@ class KeyboardControl(object):
     """Class that handles keyboard input."""
     def __init__(self, world, start_in_autopilot):
         self._carsim_enabled = False
+        self._chrono_enabled = False
         self._carsim_road = False
         self._chrono_enabled = False
         self._autopilot_enabled = start_in_autopilot
@@ -435,10 +436,9 @@ class KeyboardControl(object):
                     self._carsim_road = not self._carsim_road
                     world.player.use_carsim_road(self._carsim_road)
                     print("j pressed, using carsim road =", self._carsim_road)
-                # elif event.key == K_i and (pygame.key.get_mods() & KMOD_CTRL):
-                #     print("i pressed")
-                #     imp = carla.Location(z=50000)
-                #     world.player.add_impulse(imp)
+                elif event.key == K_i and (pygame.key.get_mods() & KMOD_CTRL):
+                    print("i pressed")
+                    world.enable_multi_vehicle_chrono([world.player.id])
                 elif event.key == K_MINUS and (pygame.key.get_mods() & KMOD_CTRL):
                     if pygame.key.get_mods() & KMOD_SHIFT:
                         world.recording_start -= 10
