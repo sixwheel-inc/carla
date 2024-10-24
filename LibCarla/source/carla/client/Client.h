@@ -94,7 +94,15 @@ namespace client {
         World World{_simulator->LoadEpisode(std::move(map_name), reset_settings, map_layers)};
       }else{}
     }
-    
+
+  void EnableChronoPhysicsMulti(
+      const std::vector<carla::ActorId>& actor_ids,
+      uint64_t max_substeps,
+      float max_substep_delta_time,
+      const std::string& vehicle_json = "",
+      const std::string& powertrain_json = "",
+      const std::string& tire_json = "",
+      const std::string& base_json_path = "");
     World GenerateOpenDriveWorld(
         std::string opendrive,
         const rpc::OpendriveGenerationParameters & params,

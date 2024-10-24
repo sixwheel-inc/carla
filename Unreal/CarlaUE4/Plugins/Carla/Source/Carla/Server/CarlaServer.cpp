@@ -1917,7 +1917,51 @@ BIND_SYNC(is_sensor_enabled_for_ros) << [this](carla::streaming::detail::stream_
     }
     return R<void>::Success();
   };
+  BIND_SYNC(enable_chrono_physics_multi) << [this](
+      std::vector<cr::ActorId> ActorIds,
+      uint64_t MaxSubsteps,
+      float MaxSubstepDeltaTime,
+      std::string VehicleJSON,
+      std::string PowertrainJSON,
+      std::string TireJSON,
+      std::string BaseJSONPath) -> R<void>
+  {
+      REQUIRE_CARLA_EPISODE();
 
+      TArray<ACarlaWheeledVehicle*> Vehicles;
+      for (auto ActorId : ActorIds)
+      {
+          FCarlaActor* CarlaActor = Episode->FindCarlaActor(ActorId);
+          if (!CarlaActor)
+          {
+              return RespondError(
+                  "enable_chrono_physics_multi",
+                  ECarlaServerResponse::ActorNotFound,
+                  " Actor Id: " + FString::FromInt(ActorId));
+          }
+          ACarlaWheeledVehicle* Vehicle = Cast<ACarlaWheeledVehicle>(CarlaActor->GetActor());
+          if (Vehicle)
+          {
+              Vehicles.Add(Vehicle);
+          }
+      }
+
+      if (Vehicles.Num() == 0)
+      {
+          RESPOND_ERROR("No valid vehicles found to enable Chrono physics.");
+      }
+      // This will create one vehicle component for all of them.
+      UMultiChronoMovementComponent::CreateMultiChronoMovementComponent(
+          Vehicles,
+          MaxSubsteps,
+          MaxSubstepDeltaTime,
+          cr::ToFString(VehicleJSON),
+          cr::ToFString(PowertrainJSON),
+          cr::ToFString(TireJSON),
+          cr::ToFString(BaseJSONPath));
+
+      return R<void>::Success();
+  };
   BIND_SYNC(enable_chrono_physics) << [this](
       cr::ActorId ActorId,
       uint64_t MaxSubsteps,

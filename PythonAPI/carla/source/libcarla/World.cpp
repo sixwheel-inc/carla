@@ -397,5 +397,46 @@ void export_world() {
          arg("color")=cc::DebugHelper::Color(255u, 0u, 0u),
          arg("life_time")=-1.0f,
          arg("persistent_lines")=true))
+    .def("enable_chrono_physics_multi", +[](
+        cc::World &self,
+        boost::python::object py_vehicle_list,
+        boost::python::object py_max_substeps = boost::python::object(),             // Optional
+        boost::python::object py_max_substep_delta_time = boost::python::object(),   // Optional
+        std::string vehicle_json = "",
+        std::string powertrain_json = "",
+        std::string tire_json = "",
+        std::string base_json_path = "") {
+      // Below should be translations.
+      uint64_t max_substeps = 10;           
+      if (!py_max_substeps.is_none()) {
+        max_substeps = boost::python::extract<uint64_t>(py_max_substeps);
+      }
+
+      float max_substep_delta_time = 0.01f;
+      if (!py_max_substep_delta_time.is_none()) {
+        max_substep_delta_time = boost::python::extract<float>(py_max_substep_delta_time);
+      }
+      std::vector<carla::SharedPtr<cc::Vehicle>> vehicles =
+          PythonListToVehicleVector(py_vehicle_list);
+      std::vector<carla::ActorId> actor_ids;
+      for (const auto &vehicle : vehicles) {
+        if (vehicle != nullptr) {
+          actor_ids.push_back(vehicle->GetId());
+        }
+      }
+
+      carla::PythonUtil::ReleaseGIL unlock;
+
+      // Unsure who should call this but as long as we can pass em in, we should be good.
+      self.GetClient().EnableChronoPhysicsMulti(
+          actor_ids,
+          max_substeps,
+          max_substep_delta_time,
+          vehicle_json,
+          powertrain_json,
+          tire_json,
+          base_json_path);
+    })
+
   ;
 }
