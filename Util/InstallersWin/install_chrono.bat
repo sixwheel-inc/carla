@@ -83,7 +83,7 @@ rem ============================================================================
 rem -- Get Chrono -------------------------------------------
 rem ============================================================================
 
-set CHRONO_VERSION=6.0.0
+set CHRONO_VERSION=9.0.1
 @REM set CHRONO_VERSION=develop
 set CHRONO_REPO=https://github.com/projectchrono/chrono.git
 set CHRONO_BASENAME=chrono
