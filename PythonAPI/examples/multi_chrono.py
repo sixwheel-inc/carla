@@ -19,13 +19,7 @@ for i in range(3):
 
 # enable multi physics chrono
 world.enable_chrono_physics_multi(
-    vehicles,
-    max_substeps=5000,
-    max_substep_delta_time=0.002,
-    vehicle_json="vehicle/HMMWV_Vehicle.json",
-    powertrain_json="powertrain/HMMWV_ShaftsPowertrain.json",
-    tire_json="tire/HMMWV_RigidTire.json",
-    base_json_path="/path/to/chrono/data/"
+    vehicles
 )
 
 # TODO: Most of the code copy pastes the KeyboardControl, so we'll just use those.
