@@ -265,6 +265,10 @@ if %USE_CHRONO% == true (
     call "%INSTALLERS_DIR%install_chrono.bat"^
      --build-dir "%INSTALLATION_DIR%" ^
      --generator %GENERATOR%
+    if !errorlevel! neq 0 (
+        echo %FILE_N% install_chrono.bat returned non-zero exit status
+        goto error_chrono
+    )
 
     if not exist "%CARLA_DEPENDENCIES_FOLDER%" (
         mkdir "%CARLA_DEPENDENCIES_FOLDER%"
@@ -469,6 +473,11 @@ rem ============================================================================
     echo           [ERROR] Possible causes:
     echo           [ERROR]  - Make sure you use x64 (not x64_x86!)
     echo           [ERROR]  - You are not using "Visual Studio x64 Native Tools Command Prompt".
+    goto failed
+
+:error_chrono
+    echo.
+    echo %FILE_N% [ERROR] Could not build Chrono.
     goto failed
 
 :failed

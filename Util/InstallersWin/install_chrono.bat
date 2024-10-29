@@ -76,6 +76,7 @@ if not exist "%EIGEN_INSTALL_DIR%" (
     mkdir %EIGEN_INCLUDE%\Eigen
 )
 
+echo "copy eigen stuff into place %EIGEN_SRC_DIR% -> %EIGEN_INCLUDE%"
 xcopy /q /Y /S /I "%EIGEN_SRC_DIR%\Eigen" "%EIGEN_INCLUDE%\Eigen"
 xcopy /q /Y /S /I "%EIGEN_SRC_DIR%\unsupported\Eigen" "%EIGEN_INCLUDE%\unsupported\Eigen"
 
@@ -83,19 +84,20 @@ rem ============================================================================
 rem -- Get Chrono -------------------------------------------
 rem ============================================================================
 
-set CHRONO_VERSION=9.0.1
-@REM set CHRONO_VERSION=develop
-set CHRONO_REPO=https://github.com/projectchrono/chrono.git
-set CHRONO_BASENAME=chrono
+set CHRONO_VERSION=shash/carla-9.0.1-fixes
+set CHRONO_REPO=git@github.com:sixwheel-inc/chrono.git
 
-set CHRONO_SRC_DIR=%BUILD_DIR%%CHRONO_BASENAME%-src
+set CHRONO_SRC_DIR=%BUILD_DIR%chrono-src
 set CHRONO_INSTALL_DIR=%BUILD_DIR%chrono-install
 set CHRONO_BUILD_DIR=%CHRONO_SRC_DIR%\build
 
-if not exist %CHRONO_INSTALL_DIR% (
-    echo %FILE_N% Retrieving Chrono.
+if not exist %CHRONO_SRC_DIR% (
+    echo Chrono source not found at %CHRONO_SRC_DIR%
+    echo "%FILE_N% Retrieving from %CHRONO_REPO% (@ %CHRONO_VERSION%) "
     call git clone --depth 1 --branch %CHRONO_VERSION% %CHRONO_REPO% %CHRONO_SRC_DIR%
+)
 
+if not exist %CHRONO_INSTALL_DIR%include (
     mkdir %CHRONO_BUILD_DIR%
     mkdir %CHRONO_INSTALL_DIR%
 
@@ -110,7 +112,7 @@ if not exist %CHRONO_INSTALL_DIR% (
     echo %FILE_N% Compiling Chrono.
     cmake -G %GENERATOR% %PLATFORM%^
         -DCMAKE_BUILD_TYPE=Release^
-        -DCMAKE_CXX_FLAGS_RELEASE="/MD /MP"^
+        -DCMAKE_CXX_FLAGS_RELEASE="/MD /MP /bigobj"^
         -DEIGEN3_INCLUDE_DIR="%EIGEN_INCLUDE%"^
         -DCMAKE_INSTALL_PREFIX="%CHRONO_INSTALL_DIR%"^
         -DENABLE_MODULE_VEHICLE=ON^
@@ -118,6 +120,10 @@ if not exist %CHRONO_INSTALL_DIR% (
 
     echo %FILE_N% Building...
     cmake --build . --config Release --target install
+    if !errorlevel! neq 0 (
+        echo %FILE_N% cmake --build error
+        goto error_chrono
+    )
 
 )
 
@@ -134,12 +140,7 @@ rem ============================================================================
 
 :success
     echo.
-    echo %FILE_N% Chrono has been successfully installed in "%EIGEN_INSTALL_DIR%"!
-    goto good_exit
-
-:already_build
-    echo %FILE_N% A xerces installation already exists.
-    echo %FILE_N% Delete "%EIGEN_INSTALL_DIR%" if you want to force a rebuild.
+    echo %FILE_N% Chrono has been successfully installed in "%CHRONO_INSTALL_DIR%"!
     goto good_exit
 
 :error_download_eigen
@@ -155,43 +156,17 @@ rem ============================================================================
     echo %FILE_N%                And re-run the setup script.
     goto bad_exit
 
-:error_download_chrono
-    echo.
-    echo %FILE_N% [DOWNLOAD ERROR] An error ocurred while downloading xerces.
-    echo %FILE_N% [DOWNLOAD ERROR] Possible causes:
-    echo %FILE_N%              - Make sure that the following url is valid:
-    echo %FILE_N% "%XERCESC_REPO%"
-    echo %FILE_N% [DOWNLOAD ERROR] Workaround:
-    echo %FILE_N%              - Download the xerces's source code and
-    echo %FILE_N%                extract the content in
-    echo %FILE_N%                "%EIGEN_SRC_DIR%"
-    echo %FILE_N%                And re-run the setup script.
-    goto bad_exit
 
 :error_extracting
     echo.
     echo %FILE_N% [EXTRACTING ERROR] An error ocurred while extracting the zip.
     echo %FILE_N% [EXTRACTING ERROR] Workaround:
-    echo %FILE_N%              - Download the xerces's source code and
+    echo %FILE_N%              - Download the chrono's source code and
     echo %FILE_N%                extract the content manually in
-    echo %FILE_N%                "%EIGEN_SRC_DIR%"
+    echo %FILE_N%                "%CHRONO_SRC_DIR%"
     echo %FILE_N%                And re-run the setup script.
     goto bad_exit
 
-:error_compiling
-    echo.
-    echo %FILE_N% [COMPILING ERROR] An error ocurred while compiling with cl.exe.
-    echo %FILE_N%              Possible causes:
-    echo %FILE_N%              - Make sure you have Visual Studio installed.
-    echo %FILE_N%              - Make sure you have the "x64 Visual C++ Toolset" in your path.
-    echo %FILE_N%                For example, using the "Visual Studio x64 Native Tools Command Prompt",
-    echo %FILE_N%                or the "vcvarsall.bat".
-    goto bad_exit
-
-:error_generating_lib
-    echo.
-    echo %FILE_N% [NMAKE ERROR] An error ocurred while compiling and installing using nmake.
-    goto bad_exit
 
 :good_exit
     echo %FILE_N% Exiting...
@@ -199,8 +174,10 @@ rem ============================================================================
     endlocal & set install_chrono=%CHRONO_INSTALL_DIR%
     exit /b 0
 
+
 :bad_exit
     if exist "%EIGEN_INSTALL_DIR%" rd /s /q "%EIGEN_INSTALL_DIR%"
+    if exist "%CHRONO_INSTALL_DIR%" rd /s /q "%CHRONO_INSTALL_DIR%"
     echo %FILE_N% Exiting with error...
     endlocal
     exit /b %errorlevel%
