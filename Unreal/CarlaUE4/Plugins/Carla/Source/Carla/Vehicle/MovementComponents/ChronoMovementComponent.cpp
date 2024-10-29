@@ -54,6 +54,10 @@ void UChronoMovementComponent::CreateChronoMovementComponentMulti(
 
     // Store all vehicles
     ChronoMovement->CarlaVehicles = Vehicles;
+    for (ACarlaWheeledVehicle* Vehicle : Vehicles)
+    {
+        Vehicle->SetCarlaMovementComponent(ChronoMovement);
+    }
 
     // Register and initialize the component
     ChronoMovement->RegisterComponent();
@@ -233,6 +237,10 @@ void UChronoMovementComponent::BeginPlay()
 
 void UChronoMovementComponent::InitializeChronoVehicles()
 {
+    // Clear existing vehicles first to prevent duplicates
+    Vehicles.Empty();
+    Terrains.Empty();
+
     // Set base path for vehicle JSON files
     std::string BasePath_string = carla::rpc::FromFString(BaseJSONPath);
     vehicle::SetDataPath(BasePath_string);
@@ -247,53 +255,70 @@ void UChronoMovementComponent::InitializeChronoVehicles()
     std::string TireJSON_string = carla::rpc::FromFString(TireJSON);
     std::string Tire_string = BasePath_string + TireJSON_string;
 
-    UE_LOG(LogCarla, Log, TEXT("Loading Chrono files from: %s"), *BaseJSONPath);
-    UE_LOG(LogCarla, Log, TEXT("Vehicle: %s"), *VehicleJSON);
-    UE_LOG(LogCarla, Log, TEXT("Powertrain: %s"), *PowertrainJSON);
-    UE_LOG(LogCarla, Log, TEXT("Tire: %s"), *TireJSON);
+    UE_LOG(LogCarla, Log, TEXT("Initializing Chrono vehicles. Carla vehicles count: %d"), CarlaVehicles.Num());
 
     // Initialize each vehicle
     for (ACarlaWheeledVehicle* CurrentVehicle : CarlaVehicles)
     {
         if (!CurrentVehicle)
         {
-            Vehicles.Add(nullptr);
-            Terrains.Add(nullptr);
-            continue;
+            UE_LOG(LogCarla, Warning, TEXT("Skipping null Carla vehicle"));
+            continue;  // Skip instead of adding null entries
         }
-        // Initial location with small offset to prevent falling through the ground
-        FVector VehicleLocation = CurrentVehicle->GetActorLocation() + FVector(0,0,25);
-        FQuat VehicleRotation = CurrentVehicle->GetActorRotation().Quaternion();
-        auto ChronoLocation = UE4LocationToChrono(VehicleLocation);
-        auto ChronoRotation = UE4QuatToChrono(VehicleRotation);
 
-        // Create JSON vehicle
-        auto VehiclePtr = chrono_types::make_shared<WheeledVehicle>(
-            &Sys,
-            VehiclePath_string);
-        VehiclePtr->Initialize(ChCoordsys<>(ChronoLocation, ChronoRotation));
-        VehiclePtr->GetChassis()->SetFixed(false);
+        try 
+        {
+            // Initial location with small offset to prevent falling through the ground
+            FVector VehicleLocation = CurrentVehicle->GetActorLocation() + FVector(0,0,25);
+            FQuat VehicleRotation = CurrentVehicle->GetActorRotation().Quaternion();
+            auto ChronoLocation = UE4LocationToChrono(VehicleLocation);
+            auto ChronoRotation = UE4QuatToChrono(VehicleRotation);
 
-        // Create and initialize the powertrain system
-        auto powertrain = ReadPowertrainJSON(
-            Powertrain_string);
-        VehiclePtr->InitializePowertrain(powertrain);
+            // Create JSON vehicle
+            auto VehiclePtr = chrono_types::make_shared<WheeledVehicle>(
+                &Sys,
+                VehiclePath_string);
+            VehiclePtr->Initialize(ChCoordsys<>(ChronoLocation, ChronoRotation));
+            VehiclePtr->GetChassis()->SetFixed(false);
 
-        // Create and initialize the tires
-        for (auto& axle : VehiclePtr->GetAxles()) {
-            for (auto& wheel : axle->GetWheels()) {
-                auto tire = ReadTireJSON(Tire_string);
-                VehiclePtr->InitializeTire(tire, wheel, VisualizationType::MESH);
+            // Create and initialize the powertrain system
+            auto powertrain = ReadPowertrainJSON(Powertrain_string);
+            VehiclePtr->InitializePowertrain(powertrain);
+
+            // Create and initialize the tires
+            for (auto& axle : VehiclePtr->GetAxles()) {
+                for (auto& wheel : axle->GetWheels()) {
+                    auto tire = ReadTireJSON(Tire_string);
+                    VehiclePtr->InitializeTire(tire, wheel, VisualizationType::MESH);
+                }
             }
-        }
-        Vehicles.Add(VehiclePtr);
+            Vehicles.Add(VehiclePtr);
+                        // Create and initialize terrain for this vehicle
+            auto TerrainPtr = chrono_types::make_shared<UERayCastTerrain>(CurrentVehicle, VehiclePtr.get());
+            Terrains.Add(TerrainPtr);
 
-        // Create terrain for this vehicle
-        auto Terrain = chrono_types::make_shared<UERayCastTerrain>(CurrentVehicle, VehiclePtr.get());
-        Terrains.Add(Terrain);
+        }
+        catch (const std::exception& e)
+        {
+            UE_LOG(LogCarla, Error, TEXT("Failed to initialize Chrono vehicle: %s"), 
+                UTF8_TO_TCHAR(e.what()));
+            continue;  // Skip this vehicle instead of adding null entries
+        }
     }
 
-    UE_LOG(LogCarla, Log, TEXT("Chrono vehicles initialized"));
+    // Ensure arrays match
+    if (Vehicles.Num() != CarlaVehicles.Num())
+    {
+        UE_LOG(LogCarla, Error, TEXT("Vehicle initialization mismatch. Chrono: %d, Carla: %d"), 
+            Vehicles.Num(), CarlaVehicles.Num());
+        // Clear everything if initialization failed
+        Vehicles.Empty();
+        Terrains.Empty();
+        DisableChronoPhysics();
+        return;
+    }
+
+    UE_LOG(LogCarla, Log, TEXT("Chrono vehicles initialized successfully. Count: %d"), Vehicles.Num());
 }
 
 void UChronoMovementComponent::InitializeChronoVehicle()
@@ -350,19 +375,19 @@ void UChronoMovementComponent::InitializeChronoVehicle()
 
 void UChronoMovementComponent::ProcessControl(FVehicleControl &Control)
 {
-  VehicleControl = Control;
-  auto PowerTrain = Vehicle->GetPowertrain();
-  if (PowerTrain)
-  {
-    if (VehicleControl.bReverse)
-    {
-      PowerTrain->SetDriveMode(ChPowertrain::DriveMode::REVERSE);
-    }
-    else
-    {
-      PowerTrain->SetDriveMode(ChPowertrain::DriveMode::FORWARD);
-    }
-  }
+  // VehicleControl = Control;
+  // auto PowerTrain = Vehicle->GetPowertrain();
+  // if (PowerTrain)
+  // {
+  //   if (VehicleControl.bReverse)
+  //   {
+  //     PowerTrain->SetDriveMode(ChPowertrain::DriveMode::REVERSE);
+  //   }
+  //   else
+  //   {
+  //     PowerTrain->SetDriveMode(ChPowertrain::DriveMode::FORWARD);
+  //   }
+  // }
 }
 
 void UChronoMovementComponent::TickComponent(float DeltaTime,
@@ -370,6 +395,22 @@ void UChronoMovementComponent::TickComponent(float DeltaTime,
       FActorComponentTickFunction* ThisTickFunction)
 {
     TRACE_CPUPROFILER_EVENT_SCOPE(UChronoMovementComponent::TickComponent);
+
+    // Cache the vehicle arrays at the start of tick
+    TArray<std::shared_ptr<WheeledVehicle>> CurrentVehicles = Vehicles;
+    TArray<std::shared_ptr<UERayCastTerrain>> CurrentTerrains = Terrains;
+
+    UE_LOG(LogCarla, Log, TEXT("TickComponent - Vehicles: %d, CarlaVehicles: %d"), 
+        CurrentVehicles.Num(), CarlaVehicles.Num());
+
+    // Early exit if no vehicles
+    if (CurrentVehicles.Num() == 0 || CarlaVehicles.Num() == 0)
+    {
+        UE_LOG(LogCarla, Warning, TEXT("No vehicles available for tick"));
+        return;
+    }
+
+    // Process physics timestep with cached arrays
     if (DeltaTime > MaxSubstepDeltaTime)
     {
         uint64_t NumberSubSteps =
@@ -378,12 +419,12 @@ void UChronoMovementComponent::TickComponent(float DeltaTime,
         {
             for (uint64_t i = 0; i < NumberSubSteps; ++i)
             {
-                AdvanceChronoSimulation(MaxSubstepDeltaTime);
+                AdvanceChronoSimulationWithCache(MaxSubstepDeltaTime, CurrentVehicles, CurrentTerrains);
             }
             float RemainingTime = DeltaTime - NumberSubSteps*MaxSubstepDeltaTime;
             if (RemainingTime > 0)
             {
-                AdvanceChronoSimulation(RemainingTime);
+                AdvanceChronoSimulationWithCache(RemainingTime, CurrentVehicles, CurrentTerrains);
             }
         }
         else
@@ -391,61 +432,81 @@ void UChronoMovementComponent::TickComponent(float DeltaTime,
             double SubDelta = DeltaTime / MaxSubsteps;
             for (uint64_t i = 0; i < MaxSubsteps; ++i)
             {
-                AdvanceChronoSimulation(SubDelta);
+                AdvanceChronoSimulationWithCache(SubDelta, CurrentVehicles, CurrentTerrains);
             }
         }
     }
     else
     {
-        AdvanceChronoSimulation(DeltaTime);
+        AdvanceChronoSimulationWithCache(DeltaTime, CurrentVehicles, CurrentTerrains);
     }
-
-    const auto ChronoPositionOffset = ChVector<>(0,0,-0.25f);
-
-    for (int32 i = 0; i < Vehicles.Num(); ++i)
+        // Update vehicle positions in UE4 after all physics steps are complete
+    for (int32 i = 0; i < CurrentVehicles.Num(); ++i)
     {
-        auto CurrentVehicle = Vehicles[i];
-        ACarlaWheeledVehicle* CarlaVehicle = CarlaVehicles[i];
-
-        if (!CurrentVehicle || !CarlaVehicle)
+        if (!CurrentVehicles[i] || !CarlaVehicles.IsValidIndex(i) || !CarlaVehicles[i])
         {
             continue;
         }
 
-        auto VehiclePos = CurrentVehicle->GetVehiclePos() + ChronoPositionOffset;
-        auto VehicleRot = CurrentVehicle->GetVehicleRot();
+        const auto ChronoPositionOffset = ChVector<>(0,0,-0.25f);
+        auto VehiclePos = CurrentVehicles[i]->GetVehiclePos() + ChronoPositionOffset;
+        auto VehicleRot = CurrentVehicles[i]->GetVehicleRot();
+        double Time = CurrentVehicles[i]->GetSystem()->GetChTime();
 
         FVector NewLocation = ChronoToUE4Location(VehiclePos);
         FQuat NewRotation = ChronoToUE4Quat(VehicleRot);
-
+        
         if(NewLocation.ContainsNaN() || NewRotation.ContainsNaN())
         {
             UE_LOG(LogCarla, Warning, TEXT(
-                "Error: Chrono vehicle position or rotation contains NaN. Disabling chrono physics..."));
-            UDefaultMovementComponent::CreateDefaultMovementComponent(CarlaVehicle);
-            return;
+                "Error: Chrono vehicle %d position or rotation contains NaN. Disabling chrono physics..."), i);
+            UDefaultMovementComponent::CreateDefaultMovementComponent(CarlaVehicles[i]);
+            continue;
         }
-        CarlaVehicle->SetActorLocation(NewLocation);
+
+        CarlaVehicles[i]->SetActorLocation(NewLocation);
         FRotator NewRotator = NewRotation.Rotator();
         // adding small rotation to compensate chrono offset
         const float ChronoPitchOffset = 2.5f;
-        NewRotator.Add(ChronoPitchOffset, 0.f, 0.f); 
-        CarlaVehicle->SetActorRotation(NewRotator);
+        NewRotator.Add(ChronoPitchOffset, 0.f, 0.f);
+        CarlaVehicles[i]->SetActorRotation(NewRotator);
     }
 }
 
+// Keep the original implementation for backward compatibility
 void UChronoMovementComponent::AdvanceChronoSimulation(float StepSize)
 {
+    AdvanceChronoSimulationWithCache(StepSize, Vehicles, Terrains);
+}
+
+// New implementation that uses cached arrays
+void UChronoMovementComponent::AdvanceChronoSimulationWithCache(
+    float StepSize,
+    const TArray<std::shared_ptr<chrono::vehicle::WheeledVehicle>>& CurrentVehicles,
+    const TArray<std::shared_ptr<UERayCastTerrain>>& CurrentTerrains)
+{
+    if (CurrentVehicles.Num() == 0 || CurrentTerrains.Num() == 0)
+    {
+        UE_LOG(LogCarla, Warning, TEXT("AdvanceChronoSimulation - No vehicles or terrains available"));
+        UE_LOG(LogCarla, Log, TEXT("CurrentVehicles: %d, CurrentTerrains: %d"), CurrentVehicles.Num(), CurrentTerrains.Num());
+        return;
+    }
+
     double Time = Sys.GetChTime();
 
-    // Apply controls and synchronize each vehicle
-    for (int32 i = 0; i < Vehicles.Num(); ++i)
+    // Use the cached arrays instead of member variables
+    for (int32 i = 0; i < CurrentVehicles.Num(); ++i)
     {
-        auto CurrentVehicle = Vehicles[i];
-        auto CurrentTerrain = Terrains[i];
+        auto CurrentVehicle = CurrentVehicles[i];
+        auto CurrentTerrain = CurrentTerrains[i];
+        
+        if (!CurrentVehicle || !CurrentTerrain)
+        {
+            continue;
+        }
 
         double Throttle = VehicleControl.Throttle;
-        double Steering = -VehicleControl.Steer; // RHF to LHF
+        double Steering = -VehicleControl.Steer;
         double Brake = VehicleControl.Brake + VehicleControl.bHandBrake;
 
         CurrentVehicle->Synchronize(Time, {Steering, Throttle, Brake}, *CurrentTerrain.get());
@@ -453,12 +514,16 @@ void UChronoMovementComponent::AdvanceChronoSimulation(float StepSize)
 
     Sys.DoStepDynamics(StepSize);
 
-    // Advance vehicle dynamics
-    for (auto CurrentVehicle : Vehicles)
+    for (auto Vehicle : CurrentVehicles)
     {
-        CurrentVehicle->Advance(StepSize);
+        if (Vehicle)
+        {
+            Vehicle->Advance(StepSize);
+        }
     }
+
 }
+
 FVector UChronoMovementComponent::GetVelocity() const
 {
     // Return the velocity of the first vehicle in the list
@@ -516,9 +581,21 @@ void UChronoMovementComponent::EndPlay(const EEndPlayReason::Type EndPlayReason)
 
 void UChronoMovementComponent::DisableChronoPhysics()
 {
+    // Use atomic operation to prevent multiple simultaneous calls
+    static std::atomic<bool> DisableInProgress(false);
+    bool expected = false;
+    if (!DisableInProgress.compare_exchange_strong(expected, true))
+    {
+        UE_LOG(LogCarla, Warning, TEXT("DisableChronoPhysics already in progress"));
+        return;
+    }
+
     this->SetComponentTickEnabled(false);
 
-    for (ACarlaWheeledVehicle* Vehicle : CarlaVehicles)
+    // Take a copy of the vehicles array to prevent issues if it's modified during iteration
+    TArray<ACarlaWheeledVehicle*> VehiclesToDisable = CarlaVehicles;
+    
+    for (ACarlaWheeledVehicle* Vehicle : VehiclesToDisable)
     {
         if (Vehicle)
         {
@@ -532,7 +609,14 @@ void UChronoMovementComponent::DisableChronoPhysics()
             UDefaultMovementComponent::CreateDefaultMovementComponent(Vehicle);
         }
     }
-    carla::log_warning("Chrono physics does not support collisions yet, reverting to default PhysX physics.");
+
+    // Clear arrays after processing
+    Vehicles.Empty();
+    Terrains.Empty();
+    CarlaVehicles.Empty();
+
+    carla::log_warning("Chrono physics disabled, reverted to default PhysX physics.");
+    DisableInProgress = false;
 }
 
 void UChronoMovementComponent::EnableUE4VehiclePhysics(bool bResetVelocity)
@@ -621,3 +705,4 @@ void UChronoMovementComponent::OnVehicleOverlap(
         DisableChronoPhysics();
     }
 }
+

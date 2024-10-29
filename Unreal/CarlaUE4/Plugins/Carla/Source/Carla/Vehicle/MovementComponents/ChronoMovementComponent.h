@@ -59,7 +59,7 @@ class CARLA_API UChronoMovementComponent : public UBaseCarlaMovementComponent
   TArray<std::shared_ptr<chrono::vehicle::WheeledVehicle>> Vehicles;
   TArray<ACarlaWheeledVehicle*> CarlaVehicles;
   std::shared_ptr<UERayCastTerrain> Terrain;
-   TArray<std::shared_ptr<UERayCastTerrain>> Terrains;
+  TArray<std::shared_ptr<UERayCastTerrain>> Terrains;
 #endif
 
   uint64_t MaxSubsteps = 10;
@@ -138,4 +138,9 @@ private:
       int32 OtherBodyIndex,
       bool bFromSweep,
       const FHitResult & SweepResult);
+  // New version that takes cached arrays
+  void AdvanceChronoSimulationWithCache(
+      float StepSize,
+      const TArray<std::shared_ptr<chrono::vehicle::WheeledVehicle>>& CurrentVehicles,
+      const TArray<std::shared_ptr<UERayCastTerrain>>& CurrentTerrains);
 };
