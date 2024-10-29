@@ -22,7 +22,7 @@
 #include "chrono_vehicle/ChVehicleModelData.h"
 #include "chrono_vehicle/ChTerrain.h"
 #include "chrono_vehicle/driver/ChDataDriver.h"
-#include "chrono_vehicle/wheeled_vehicle/vehicle/WheeledVehicle.h"
+#include "chrono_models/vehicle/kraz/Kraz_tractor.h"
 
 #if defined(__clang__)
 #  pragma clang diagnostic pop
@@ -42,9 +42,9 @@ public:
   UERayCastTerrain(ACarlaWheeledVehicle* UEVehicle, chrono::vehicle::ChVehicle* ChrVehicle);
 
   std::pair<bool, FHitResult> GetTerrainProperties(const FVector &Location) const;
-  virtual double GetHeight(const chrono::ChVector<>& loc) const override;
-  virtual chrono::ChVector<> GetNormal(const chrono::ChVector<>& loc) const override;
-  virtual float GetCoefficientFriction(const chrono::ChVector<>& loc) const override;
+  virtual double GetHeight(const chrono::ChVector3d& loc) const override;
+  virtual chrono::ChVector3d GetNormal(const chrono::ChVector3d& loc) const override;
+  virtual float GetCoefficientFriction(const chrono::ChVector3d& loc) const override;
 };
 #endif
 
@@ -55,7 +55,7 @@ class CARLA_API UChronoMovementComponent : public UBaseCarlaMovementComponent
 
 #ifdef WITH_CHRONO
   chrono::ChSystemNSC Sys;
-  std::shared_ptr<chrono::vehicle::WheeledVehicle> Vehicle;
+  std::shared_ptr<chrono::vehicle::kraz::Kraz_tractor> Vehicle;
   std::shared_ptr<UERayCastTerrain> Terrain;
 #endif
 
