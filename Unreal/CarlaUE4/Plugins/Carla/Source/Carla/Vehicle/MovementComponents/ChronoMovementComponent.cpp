@@ -238,6 +238,10 @@ void UChronoMovementComponent::BeginPlay()
 
 void UChronoMovementComponent::InitializeChronoVehicles()
 {
+    if (Vehicles.Num() > 0) {
+      UE_LOG(LogCarla, Warning, TEXT("Vehicles already initialized. Skipping initialization."));
+      return;
+    }
     // Clear existing vehicles first to prevent duplicates
     Vehicles.Empty();
     Terrains.Empty();
@@ -511,7 +515,7 @@ void UChronoMovementComponent::AdvanceChronoSimulationWithCache(
     {
         auto CurrentVehicle = CurrentVehicles[i];
         auto CurrentTerrain = CurrentTerrains[i];
-        vehicle1
+        
         if (!CurrentVehicle || !CurrentTerrain)
         {
             continue;
