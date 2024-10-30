@@ -43,7 +43,8 @@ void UChronoMovementComponent::CreateChronoMovementComponentMulti(
     {
         return;
     }
-
+    // Set the first vehicle as the lead vehicle
+    ChronoMovement->LeadVehicle = FirstVehicle;
     // Set the properties
     ChronoMovement->MaxSubsteps = MaxSubsteps;
     ChronoMovement->MaxSubstepDeltaTime = MaxSubstepDeltaTime;
@@ -395,6 +396,12 @@ void UChronoMovementComponent::TickComponent(float DeltaTime,
       FActorComponentTickFunction* ThisTickFunction)
 {
     TRACE_CPUPROFILER_EVENT_SCOPE(UChronoMovementComponent::TickComponent);
+    // Check if this instance is handling the lead vehicle. If not, perform no-op.
+    if (GetOwner() != LeadVehicle)
+    {
+        UE_LOG(LogCarla, Log, TEXT("Not the lead vehicle, skipping tick"));
+        return;
+    }
 
     // Cache the vehicle arrays at the start of tick
     TArray<std::shared_ptr<WheeledVehicle>> CurrentVehicles = Vehicles;
@@ -452,10 +459,14 @@ void UChronoMovementComponent::TickComponent(float DeltaTime,
         auto VehiclePos = CurrentVehicles[i]->GetVehiclePos() + ChronoPositionOffset;
         auto VehicleRot = CurrentVehicles[i]->GetVehicleRot();
         double Time = CurrentVehicles[i]->GetSystem()->GetChTime();
+            // Logging Vehicle Position and Rotation
+        UE_LOG(LogCarla, Log, TEXT("VehiclePos: X=%f, Y=%f, Z=%f"), VehiclePos.x(), VehiclePos.y(), VehiclePos.z());
+        UE_LOG(LogCarla, Log, TEXT("VehicleRot: W=%f, X=%f, Y=%f, Z=%f"), VehicleRot.e0(), VehicleRot.e1(), VehicleRot.e2(), VehicleRot.e3());
 
         FVector NewLocation = ChronoToUE4Location(VehiclePos);
+        UE_LOG(LogCarla, Log, TEXT("NewLocation: X=%f, Y=%f, Z=%f"), NewLocation.X, NewLocation.Y, NewLocation.Z);
         FQuat NewRotation = ChronoToUE4Quat(VehicleRot);
-        
+        UE_LOG(LogCarla, Log, TEXT("NewRotation: W=%f, X=%f, Y=%f, Z=%f"), NewRotation.W, NewRotation.X, NewRotation.Y, NewRotation.Z);
         if(NewLocation.ContainsNaN() || NewRotation.ContainsNaN())
         {
             UE_LOG(LogCarla, Warning, TEXT(
@@ -471,6 +482,7 @@ void UChronoMovementComponent::TickComponent(float DeltaTime,
         NewRotator.Add(ChronoPitchOffset, 0.f, 0.f);
         CarlaVehicles[i]->SetActorRotation(NewRotator);
     }
+    UE_LOG(LogCarla, Log, TEXT("TickComponent - Finished updating vehicle positions"));
 }
 
 // Keep the original implementation for backward compatibility
@@ -499,7 +511,7 @@ void UChronoMovementComponent::AdvanceChronoSimulationWithCache(
     {
         auto CurrentVehicle = CurrentVehicles[i];
         auto CurrentTerrain = CurrentTerrains[i];
-        
+        vehicle1
         if (!CurrentVehicle || !CurrentTerrain)
         {
             continue;

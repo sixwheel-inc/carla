@@ -38,6 +38,7 @@ class UERayCastTerrain : public chrono::vehicle::ChTerrain
 {
   ACarlaWheeledVehicle* CarlaVehicle;
   chrono::vehicle::ChVehicle* ChronoVehicle;
+
 public:
   UERayCastTerrain(ACarlaWheeledVehicle* UEVehicle, chrono::vehicle::ChVehicle* ChrVehicle);
 
@@ -122,6 +123,8 @@ public:
 private:
 
   void DisableChronoPhysics();
+  UPROPERTY()
+  ACarlaWheeledVehicle* LeadVehicle = nullptr;
 
   UFUNCTION()
   void OnVehicleHit(AActor *Actor,
