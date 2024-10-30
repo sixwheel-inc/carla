@@ -13,6 +13,9 @@
 #include <carla/rpc/String.h>
 #ifdef WITH_CHRONO
 #include "chrono_vehicle/utils/ChUtilsJSON.h"
+#include "chrono_models/vehicle/kraz/Kraz_tractor_EngineSimpleMap.h"
+#include "chrono_models/vehicle/kraz/Kraz_tractor_AutomaticTransmissionSimpleMap.h"
+#include "chrono_models/vehicle/kraz/Kraz_tractor_Tire.h"
 #endif
 #include "compiler/enable-ue4-macros.h"
 #include "Carla/Util/RayTracer.h"
@@ -180,17 +183,40 @@ void UChronoMovementComponent::InitializeChronoVehicle()
       true);
   Vehicle->Initialize(ChCoordsys<>(ChronoLocation, ChronoRotation));
   Vehicle->GetChassis()->SetFixed(false);
-  // Create and initialize the powertrain System
-  // auto powertrain = ReadPowertrainJSON(
-  //     PowerTrain_string);
-  // Vehicle->InitializePowertrain(powertrain);
-  // // Create and initialize the tires
-  // for (auto& axle : Vehicle->GetAxles()) {
-  //     for (auto& wheel : axle->GetWheels()) {
-  //         auto tire = ReadTireJSON(Tire_string);
-  //         Vehicle->InitializeTire(tire, wheel, VisualizationType::MESH);
-  //     }
-  // }
+  auto engine = chrono_types::make_shared<kraz::Kraz_tractor_EngineSimpleMap>("Engine");
+  auto transmission = chrono_types::make_shared<kraz::Kraz_tractor_AutomaticTransmissionSimpleMap>("Transmission");
+  auto powertrain = chrono_types::make_shared<ChPowertrainAssembly>(engine, transmission);
+  Vehicle->InitializePowertrain(powertrain);
+
+  // Create the tractor tires
+  auto tire_FL = chrono_types::make_shared<kraz::Kraz_tractor_Tire>("TractorTire_FL");
+  auto tire_FR = chrono_types::make_shared<kraz::Kraz_tractor_Tire>("TractorTire_FR");
+
+  auto tire_RL1i = chrono_types::make_shared<kraz::Kraz_tractor_Tire>("TractorTire_RL1i");
+  auto tire_RR1i = chrono_types::make_shared<kraz::Kraz_tractor_Tire>("TractorTire_RR1i");
+  auto tire_RL1o = chrono_types::make_shared<kraz::Kraz_tractor_Tire>("TractorTire_RL1o");
+  auto tire_RR1o = chrono_types::make_shared<kraz::Kraz_tractor_Tire>("TractorTire_RR1o");
+
+  auto tire_RL2i = chrono_types::make_shared<kraz::Kraz_tractor_Tire>("TractorTire_RL2i");
+  auto tire_RR2i = chrono_types::make_shared<kraz::Kraz_tractor_Tire>("TractorTire_RR2i");
+  auto tire_RL2o = chrono_types::make_shared<kraz::Kraz_tractor_Tire>("TractorTire_RL2o");
+  auto tire_RR2o = chrono_types::make_shared<kraz::Kraz_tractor_Tire>("TractorTire_RR2o");
+
+  Vehicle->InitializeTire(tire_FL, Vehicle->GetAxle(0)->m_wheels[0], VisualizationType::NONE);
+  Vehicle->InitializeTire(tire_FR, Vehicle->GetAxle(0)->m_wheels[1], VisualizationType::NONE);
+
+  Vehicle->InitializeTire(tire_RL1i, Vehicle->GetAxle(1)->m_wheels[0], VisualizationType::NONE);
+  Vehicle->InitializeTire(tire_RR1i, Vehicle->GetAxle(1)->m_wheels[1], VisualizationType::NONE);
+  Vehicle->InitializeTire(tire_RL1o, Vehicle->GetAxle(1)->m_wheels[2], VisualizationType::NONE);
+  Vehicle->InitializeTire(tire_RR1o, Vehicle->GetAxle(1)->m_wheels[3], VisualizationType::NONE);
+
+  Vehicle->InitializeTire(tire_RL2i, Vehicle->GetAxle(2)->m_wheels[0], VisualizationType::NONE);
+  Vehicle->InitializeTire(tire_RR2i, Vehicle->GetAxle(2)->m_wheels[1], VisualizationType::NONE);
+  Vehicle->InitializeTire(tire_RL2o, Vehicle->GetAxle(2)->m_wheels[2], VisualizationType::NONE);
+  Vehicle->InitializeTire(tire_RR2o, Vehicle->GetAxle(2)->m_wheels[3], VisualizationType::NONE);
+
+
+  
   UE_LOG(LogCarla, Log, TEXT("Chrono vehicle initialized"));
 }
 
