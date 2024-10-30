@@ -273,25 +273,25 @@ void UChronoMovementComponent::TickComponent(float DeltaTime,
   }
 
   const auto ChronoPositionOffset = ChVector3d(0,0,-0.25f);
-  // auto VehiclePos = Vehicle->GetVehiclePos() + ChronoPositionOffset;
-  // auto VehicleRot = Vehicle->GetVehicleRot();
+  auto VehiclePos = Vehicle->GetPos() + ChronoPositionOffset;
+  auto VehicleRot = Vehicle->GetRot();
   double Time = Vehicle->GetSystem()->GetChTime();
 
-  // FVector NewLocation = ChronoToUE4Location(VehiclePos);
-  // FQuat NewRotation = ChronoToUE4Quat(VehicleRot);
-  // if(NewLocation.ContainsNaN() || NewRotation.ContainsNaN())
-  // {
-  //   UE_LOG(LogCarla, Warning, TEXT(
-  //       "Error: Chrono vehicle position or rotation contains NaN. Disabling chrono physics..."));
-  //   UDefaultMovementComponent::CreateDefaultMovementComponent(CarlaVehicle);
-  //   return;
-  // }
-  // CarlaVehicle->SetActorLocation(NewLocation);
-  // FRotator NewRotator = NewRotation.Rotator();
+  FVector NewLocation = ChronoToUE4Location(VehiclePos);
+  FQuat NewRotation = ChronoToUE4Quat(VehicleRot);
+  if(NewLocation.ContainsNaN() || NewRotation.ContainsNaN())
+  {
+    UE_LOG(LogCarla, Warning, TEXT(
+        "Error: Chrono vehicle position or rotation contains NaN. Disabling chrono physics..."));
+    UDefaultMovementComponent::CreateDefaultMovementComponent(CarlaVehicle);
+    return;
+  }
+  CarlaVehicle->SetActorLocation(NewLocation);
+  FRotator NewRotator = NewRotation.Rotator();
   // adding small rotation to compensate chrono offset
-  // const float ChronoPitchOffset = 2.5f;
-  // NewRotator.Add(ChronoPitchOffset, 0.f, 0.f); 
-  // CarlaVehicle->SetActorRotation(NewRotator);
+  const float ChronoPitchOffset = 2.5f;
+  NewRotator.Add(ChronoPitchOffset, 0.f, 0.f); 
+  CarlaVehicle->SetActorRotation(NewRotator);
 }
 
 void UChronoMovementComponent::AdvanceChronoSimulation(float StepSize)
