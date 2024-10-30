@@ -149,9 +149,10 @@ void UChronoMovementComponent::BeginPlay()
   DisableUE4VehiclePhysics();
 
   // // // Chrono System
-  // Sys.Set_G_acc(ChVector3d(0, 0, -9.81));
+  Sys.SetGravitationalAcceleration(ChVector3d(0, 0, -9.81));
+  
   Sys.SetSolverType(ChSolver::Type::BARZILAIBORWEIN);
-  // Sys.SetSolverMaxIterations(150);
+  Sys.GetSolver()->AsIterative()->SetMaxIterations(150);
   Sys.SetMaxPenetrationRecoverySpeed(4.0);
 
   InitializeChronoVehicle();
@@ -214,8 +215,6 @@ void UChronoMovementComponent::InitializeChronoVehicle()
   Vehicle->InitializeTire(tire_RR2i, Vehicle->GetAxle(2)->m_wheels[1], VisualizationType::NONE);
   Vehicle->InitializeTire(tire_RL2o, Vehicle->GetAxle(2)->m_wheels[2], VisualizationType::NONE);
   Vehicle->InitializeTire(tire_RR2o, Vehicle->GetAxle(2)->m_wheels[3], VisualizationType::NONE);
-
-
   
   UE_LOG(LogCarla, Log, TEXT("Chrono vehicle initialized"));
 }
@@ -223,18 +222,22 @@ void UChronoMovementComponent::InitializeChronoVehicle()
 void UChronoMovementComponent::ProcessControl(FVehicleControl &Control)
 {
   VehicleControl = Control;
-  // auto PowerTrain = Vehicle->GetPowertrain();
-  // if (PowerTrain)
-  // {
-  //   if (VehicleControl.bReverse)
-  //   {
-  //     PowerTrain->SetDriveMode(ChPowertrain::DriveMode::REVERSE);
-  //   }
-  //   else
-  //   {
-  //     PowerTrain->SetDriveMode(ChPowertrain::DriveMode::FORWARD);
-  //   }
-  // }
+  auto PowerTrain = Vehicle->GetPowertrainAssembly();
+  if (PowerTrain)
+  {
+    auto Transmission = PowerTrain->GetTransmission();
+    auto AutoTransmission = std::dynamic_pointer_cast<ChAutomaticTransmission>(Transmission);
+    if (AutoTransmission) {
+      if (VehicleControl.bReverse)
+      {
+        AutoTransmission->SetDriveMode(ChAutomaticTransmission::DriveMode::REVERSE);
+      }
+      else
+      {
+        AutoTransmission->SetDriveMode(ChAutomaticTransmission::DriveMode::FORWARD);
+      }
+    }
+  }
 }
 
 void UChronoMovementComponent::TickComponent(float DeltaTime,
@@ -307,24 +310,27 @@ void UChronoMovementComponent::AdvanceChronoSimulation(float StepSize)
 
 FVector UChronoMovementComponent::GetVelocity() const
 {
-  // if (Vehicle)
-  // {
-  //   return ChronoToUE4Location(
-  //       Vehicle->GetVehiclePointVelocity(ChVector3d(0,0,0)));
-  // }
+  if (Vehicle)
+  {
+    return ChronoToUE4Location(
+        Vehicle->GetPointVelocity(ChVector3d(0,0,0)));
+  }
   return FVector();
 }
 
 int32 UChronoMovementComponent::GetVehicleCurrentGear() const
 {
-  // if (Vehicle)
-  // {
-  //   auto PowerTrain = Vehicle->GetPowertrain();
-  //   if (PowerTrain)
-  //   {
-  //     return PowerTrain->GetCurrentTransmissionGear();
-  //   }
-  // }
+  if (Vehicle)
+  {
+    auto PowerTrain = Vehicle->GetPowertrainAssembly();
+    if (PowerTrain)
+    {
+      auto Transmission = PowerTrain->GetTransmission();
+      if (Transmission) {
+        return Transmission->GetCurrentGear();
+      }
+    }
+  }
   return 0;
 }
 
