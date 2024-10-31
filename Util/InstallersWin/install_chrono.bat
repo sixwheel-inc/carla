@@ -84,7 +84,7 @@ rem ============================================================================
 rem -- Get Chrono -------------------------------------------
 rem ============================================================================
 
-set CHRONO_VERSION=shash/main-w/-fixes-for-windows-carla
+set CHRONO_VERSION=shash/port-revoy
 set CHRONO_REPO=git@github.com:sixwheel-inc/chrono.git
 
 set CHRONO_SRC_DIR=%BUILD_DIR%chrono-src
