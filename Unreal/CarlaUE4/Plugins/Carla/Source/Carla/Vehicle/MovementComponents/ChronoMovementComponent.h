@@ -22,7 +22,7 @@
 #include "chrono_vehicle/ChVehicleModelData.h"
 #include "chrono_vehicle/ChTerrain.h"
 #include "chrono_vehicle/driver/ChDataDriver.h"
-#include "chrono_models/vehicle/kraz/Kraz_tractor.h"
+#include "chrono_models/vehicle/kraz/Kraz.h"
 
 #if defined(__clang__)
 #  pragma clang diagnostic pop
@@ -55,7 +55,7 @@ class CARLA_API UChronoMovementComponent : public UBaseCarlaMovementComponent
 
 #ifdef WITH_CHRONO
   chrono::ChSystemNSC Sys;
-  std::shared_ptr<chrono::vehicle::kraz::Kraz_tractor> Vehicle;
+  std::shared_ptr<chrono::vehicle::kraz::Kraz> Vehicle;
   std::shared_ptr<UERayCastTerrain> Terrain;
 #endif
 

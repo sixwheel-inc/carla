@@ -13,9 +13,6 @@
 #include <carla/rpc/String.h>
 #ifdef WITH_CHRONO
 #include "chrono_vehicle/utils/ChUtilsJSON.h"
-#include "chrono_models/vehicle/kraz/Kraz_tractor_EngineSimpleMap.h"
-#include "chrono_models/vehicle/kraz/Kraz_tractor_AutomaticTransmissionSimpleMap.h"
-#include "chrono_models/vehicle/kraz/Kraz_tractor_Tire.h"
 #endif
 #include "compiler/enable-ue4-macros.h"
 #include "Carla/Util/RayTracer.h"
@@ -158,7 +155,7 @@ void UChronoMovementComponent::BeginPlay()
   InitializeChronoVehicle();
 
   // Create the terrain
-  Terrain = chrono_types::make_shared<UERayCastTerrain>(CarlaVehicle, Vehicle.get());
+  Terrain = chrono_types::make_shared<UERayCastTerrain>(CarlaVehicle, &Vehicle->GetTractor());
 
   CarlaVehicle->OnActorHit.AddDynamic(
       this, &UChronoMovementComponent::OnVehicleHit);
@@ -179,62 +176,31 @@ void UChronoMovementComponent::InitializeChronoVehicle()
 
   UE_LOG(LogCarla, Log, TEXT("Loading Chrono Vehicle"));
   // Create JSON vehicle
-  Vehicle = chrono_types::make_shared<kraz::Kraz_tractor>(
-      &Sys,
-      true);
-  Vehicle->Initialize(ChCoordsys<>(ChronoLocation, ChronoRotation));
-  Vehicle->GetChassis()->SetFixed(false);
-  auto engine = chrono_types::make_shared<kraz::Kraz_tractor_EngineSimpleMap>("Engine");
-  auto transmission = chrono_types::make_shared<kraz::Kraz_tractor_AutomaticTransmissionSimpleMap>("Transmission");
-  auto powertrain = chrono_types::make_shared<ChPowertrainAssembly>(engine, transmission);
-  Vehicle->InitializePowertrain(powertrain);
-
-  // Create the tractor tires
-  auto tire_FL = chrono_types::make_shared<kraz::Kraz_tractor_Tire>("TractorTire_FL");
-  auto tire_FR = chrono_types::make_shared<kraz::Kraz_tractor_Tire>("TractorTire_FR");
-
-  auto tire_RL1i = chrono_types::make_shared<kraz::Kraz_tractor_Tire>("TractorTire_RL1i");
-  auto tire_RR1i = chrono_types::make_shared<kraz::Kraz_tractor_Tire>("TractorTire_RR1i");
-  auto tire_RL1o = chrono_types::make_shared<kraz::Kraz_tractor_Tire>("TractorTire_RL1o");
-  auto tire_RR1o = chrono_types::make_shared<kraz::Kraz_tractor_Tire>("TractorTire_RR1o");
-
-  auto tire_RL2i = chrono_types::make_shared<kraz::Kraz_tractor_Tire>("TractorTire_RL2i");
-  auto tire_RR2i = chrono_types::make_shared<kraz::Kraz_tractor_Tire>("TractorTire_RR2i");
-  auto tire_RL2o = chrono_types::make_shared<kraz::Kraz_tractor_Tire>("TractorTire_RL2o");
-  auto tire_RR2o = chrono_types::make_shared<kraz::Kraz_tractor_Tire>("TractorTire_RR2o");
-
-  Vehicle->InitializeTire(tire_FL, Vehicle->GetAxle(0)->m_wheels[0], VisualizationType::NONE);
-  Vehicle->InitializeTire(tire_FR, Vehicle->GetAxle(0)->m_wheels[1], VisualizationType::NONE);
-
-  Vehicle->InitializeTire(tire_RL1i, Vehicle->GetAxle(1)->m_wheels[0], VisualizationType::NONE);
-  Vehicle->InitializeTire(tire_RR1i, Vehicle->GetAxle(1)->m_wheels[1], VisualizationType::NONE);
-  Vehicle->InitializeTire(tire_RL1o, Vehicle->GetAxle(1)->m_wheels[2], VisualizationType::NONE);
-  Vehicle->InitializeTire(tire_RR1o, Vehicle->GetAxle(1)->m_wheels[3], VisualizationType::NONE);
-
-  Vehicle->InitializeTire(tire_RL2i, Vehicle->GetAxle(2)->m_wheels[0], VisualizationType::NONE);
-  Vehicle->InitializeTire(tire_RR2i, Vehicle->GetAxle(2)->m_wheels[1], VisualizationType::NONE);
-  Vehicle->InitializeTire(tire_RL2o, Vehicle->GetAxle(2)->m_wheels[2], VisualizationType::NONE);
-  Vehicle->InitializeTire(tire_RR2o, Vehicle->GetAxle(2)->m_wheels[3], VisualizationType::NONE);
-  
+  Vehicle = chrono_types::make_shared<kraz::Kraz>(&Sys);
+  Vehicle->Initialize();
+  Vehicle->SetInitPosition(ChCoordsys<>(ChronoLocation, ChronoRotation));  
   UE_LOG(LogCarla, Log, TEXT("Chrono vehicle initialized"));
 }
 
 void UChronoMovementComponent::ProcessControl(FVehicleControl &Control)
 {
   VehicleControl = Control;
-  auto PowerTrain = Vehicle->GetPowertrainAssembly();
-  if (PowerTrain)
+  if (Vehicle)
   {
-    auto Transmission = PowerTrain->GetTransmission();
-    auto AutoTransmission = std::dynamic_pointer_cast<ChAutomaticTransmission>(Transmission);
-    if (AutoTransmission) {
-      if (VehicleControl.bReverse)
-      {
-        AutoTransmission->SetDriveMode(ChAutomaticTransmission::DriveMode::REVERSE);
-      }
-      else
-      {
-        AutoTransmission->SetDriveMode(ChAutomaticTransmission::DriveMode::FORWARD);
+    auto PowerTrain = Vehicle->GetTractor().GetPowertrainAssembly();
+    if (PowerTrain)
+    {
+      auto Transmission = PowerTrain->GetTransmission();
+      auto AutoTransmission = std::dynamic_pointer_cast<ChAutomaticTransmission>(Transmission);
+      if (AutoTransmission) {
+        if (VehicleControl.bReverse)
+        {
+          AutoTransmission->SetDriveMode(ChAutomaticTransmission::DriveMode::REVERSE);
+        }
+        else
+        {
+          AutoTransmission->SetDriveMode(ChAutomaticTransmission::DriveMode::FORWARD);
+        }
       }
     }
   }
@@ -276,8 +242,8 @@ void UChronoMovementComponent::TickComponent(float DeltaTime,
   }
 
   const auto ChronoPositionOffset = ChVector3d(0,0,-0.25f);
-  auto VehiclePos = Vehicle->GetPos() + ChronoPositionOffset;
-  auto VehicleRot = Vehicle->GetRot();
+  auto VehiclePos = Vehicle->GetTractor().GetPos() + ChronoPositionOffset;
+  auto VehicleRot = Vehicle->GetTractor().GetRot();
   double Time = Vehicle->GetSystem()->GetChTime();
 
   FVector NewLocation = ChronoToUE4Location(VehiclePos);
@@ -313,7 +279,7 @@ FVector UChronoMovementComponent::GetVelocity() const
   if (Vehicle)
   {
     return ChronoToUE4Location(
-        Vehicle->GetPointVelocity(ChVector3d(0,0,0)));
+        Vehicle->GetTractor().GetPointVelocity(ChVector3d(0,0,0)));
   }
   return FVector();
 }
@@ -322,7 +288,7 @@ int32 UChronoMovementComponent::GetVehicleCurrentGear() const
 {
   if (Vehicle)
   {
-    auto PowerTrain = Vehicle->GetPowertrainAssembly();
+    auto PowerTrain = Vehicle->GetTractor().GetPowertrainAssembly();
     if (PowerTrain)
     {
       auto Transmission = PowerTrain->GetTransmission();
