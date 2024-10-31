@@ -38,6 +38,7 @@ class UERayCastTerrain : public chrono::vehicle::ChTerrain
 {
   ACarlaWheeledVehicle* CarlaVehicle;
   chrono::vehicle::ChVehicle* ChronoVehicle;
+
 public:
   UERayCastTerrain(ACarlaWheeledVehicle* UEVehicle, chrono::vehicle::ChVehicle* ChrVehicle);
 
@@ -56,19 +57,29 @@ class CARLA_API UChronoMovementComponent : public UBaseCarlaMovementComponent
 #ifdef WITH_CHRONO
   chrono::ChSystemNSC Sys;
   std::shared_ptr<chrono::vehicle::WheeledVehicle> Vehicle;
+  TArray<std::shared_ptr<chrono::vehicle::WheeledVehicle>> Vehicles;
+  TArray<ACarlaWheeledVehicle*> CarlaVehicles;
   std::shared_ptr<UERayCastTerrain> Terrain;
+  TArray<std::shared_ptr<UERayCastTerrain>> Terrains;
 #endif
 
   uint64_t MaxSubsteps = 10;
   float MaxSubstepDeltaTime = 0.01;
   FVehicleControl VehicleControl;
-  FString VehicleJSON =    "hmmwv/vehicle/HMMWV_Vehicle.json";
-  FString PowertrainJSON = "hmmwv/powertrain/HMMWV_ShaftsPowertrain.json";
-  FString TireJSON =       "hmmwv/tire/HMMWV_Pac02Tire.json";
-  FString BaseJSONPath = "";
+  FString VehicleJSON =    "sedan/vehicle/Sedan_Vehicle.json";
+  FString PowertrainJSON = "sedan/powertrain/Sedan_SimpleMapPowertrain.json";
+  FString TireJSON =       "sedan/tire/Sedan_TMeasyTire.json";
+  FString BaseJSONPath =   "C:/sixwheel/carla/Build/chrono-install/data/vehicle/";
 
 public:
-
+  static void CreateChronoMovementComponentMulti(
+        const TArray<ACarlaWheeledVehicle*>& Vehicles,
+        uint64_t MaxSubsteps = 10,
+        float MaxSubstepDeltaTime = 0.01,
+        FString VehicleJSON = TEXT("sedan/vehicle/Sedan_Vehicle.json"),
+        FString PowertrainJSON = TEXT("sedan/powertrain/Sedan_SimpleMapPowertrain.json"),
+        FString TireJSON = TEXT("sedan/tire/Sedan_TMeasyTire.json"),
+        FString BaseJSONPath = TEXT("C:/sixwheel/carla/Build/chrono-install/data/vehicle/"));
 
   static void CreateChronoMovementComponent(
       ACarlaWheeledVehicle* Vehicle,
@@ -83,7 +94,7 @@ public:
   virtual void BeginPlay() override;
 
   void InitializeChronoVehicle();
-
+  void InitializeChronoVehicles();
   void ProcessControl(FVehicleControl &Control) override;
 
   void TickComponent(float DeltaTime,
@@ -99,11 +110,21 @@ public:
   virtual float GetVehicleForwardSpeed() const override;
 
   virtual void EndPlay(const EEndPlayReason::Type EndPlayReason) override;
+
+  // Override base class methods to handle multiple vehicles
+  void EnableUE4VehiclePhysics(bool bResetVelocity);
+  void DisableUE4VehiclePhysics();
+
+  // Overloaded methods to accept a vehicle parameter
+  void EnableUE4VehiclePhysics(bool bResetVelocity, ACarlaWheeledVehicle* Vehicle);
+  void DisableUE4VehiclePhysics(ACarlaWheeledVehicle* Vehicle);
   #endif
 
 private:
 
   void DisableChronoPhysics();
+  UPROPERTY()
+  ACarlaWheeledVehicle* LeadVehicle = nullptr;
 
   UFUNCTION()
   void OnVehicleHit(AActor *Actor,
@@ -120,4 +141,9 @@ private:
       int32 OtherBodyIndex,
       bool bFromSweep,
       const FHitResult & SweepResult);
+  // New version that takes cached arrays
+  void AdvanceChronoSimulationWithCache(
+      float StepSize,
+      const TArray<std::shared_ptr<chrono::vehicle::WheeledVehicle>>& CurrentVehicles,
+      const TArray<std::shared_ptr<UERayCastTerrain>>& CurrentTerrains);
 };

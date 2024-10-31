@@ -94,7 +94,9 @@ namespace client {
         World World{_simulator->LoadEpisode(std::move(map_name), reset_settings, map_layers)};
       }else{}
     }
-    
+
+  void EnableChronoPhysicsMulti(
+      const std::vector<carla::ActorId>& actor_ids);
     World GenerateOpenDriveWorld(
         std::string opendrive,
         const rpc::OpendriveGenerationParameters & params,

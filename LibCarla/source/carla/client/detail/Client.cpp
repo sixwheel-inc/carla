@@ -456,6 +456,12 @@ namespace detail {
   void Client::UseCarSimRoad(rpc::ActorId vehicle, bool enabled) {
     _pimpl->AsyncCall("use_carsim_road", vehicle, enabled);
   }
+  void Client::EnableChronoPhysicsMulti(const std::vector<carla::ActorId> &actor_ids) {
+    // log calling this.
+    std::cout << "444 enable_chrono_physics_multi: Calling" << std::endl;
+    _pimpl->AsyncCall("enable_chrono_physics_multi", actor_ids);
+    std::cout << "done" << std:endl;
+  }
 
   void Client::EnableChronoPhysics(
       rpc::ActorId vehicle,
