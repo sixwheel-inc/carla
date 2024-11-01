@@ -176,7 +176,7 @@ void UChronoMovementComponent::InitializeChronoVehicle()
 
   UE_LOG(LogCarla, Log, TEXT("Loading Chrono Vehicle"));
   // Create JSON vehicle
-  Vehicle = chrono_types::make_shared<kraz::Kraz>(&Sys);
+  Vehicle = chrono_types::make_shared<kraz::RevoyKraz>(&Sys);
   Vehicle->Initialize();
   Vehicle->SetInitPosition(ChCoordsys<>(ChronoLocation, ChronoRotation));  
   UE_LOG(LogCarla, Log, TEXT("Chrono vehicle initialized"));
