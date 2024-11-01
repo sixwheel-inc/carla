@@ -261,6 +261,7 @@ void UChronoMovementComponent::TickComponent(float DeltaTime,
   const float ChronoPitchOffset = 2.5f;
   NewRotator.Add(ChronoPitchOffset, 0.f, 0.f); 
   CarlaVehicle->SetActorRotation(NewRotator);
+  UE_LOG(LogCarla, Log, TEXT("[chronomove]: Tractor %f %f %f"), VehiclePos.x(), VehiclePos.y(), VehiclePos.z());
 }
 
 void UChronoMovementComponent::AdvanceChronoSimulation(float StepSize)
