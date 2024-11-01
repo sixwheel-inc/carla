@@ -261,7 +261,12 @@ void UChronoMovementComponent::TickComponent(float DeltaTime,
   const float ChronoPitchOffset = 2.5f;
   NewRotator.Add(ChronoPitchOffset, 0.f, 0.f); 
   CarlaVehicle->SetActorRotation(NewRotator);
+  
   UE_LOG(LogCarla, Log, TEXT("[chronomove]: Tractor %f %f %f"), VehiclePos.x(), VehiclePos.y(), VehiclePos.z());
+  auto RevoyPos = Vehicle->GetRevoy().GetPos() + ChronoPositionOffset;
+  UE_LOG(LogCarla, Log, TEXT("[chronomove]: Revoy %f %f %f"), RevoyPos.x(), RevoyPos.y(), RevoyPos.z());
+  auto TrailerPos = Vehicle->GetTrailer().GetPos() + ChronoPositionOffset;
+  UE_LOG(LogCarla, Log, TEXT("[chronomove]: Trailer %f %f %f"), TrailerPos.x(), TrailerPos.y(), TrailerPos.z());
 }
 
 void UChronoMovementComponent::AdvanceChronoSimulation(float StepSize)
