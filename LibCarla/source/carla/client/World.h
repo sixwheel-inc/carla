@@ -67,8 +67,6 @@ namespace client {
 
     void UnloadLevelLayer(rpc::MapLayer map_layers) const;
 
-    void EnableMultiVehicleChrono(const std::vector<ActorId>& vehicle_ids) const;
-
     /// Return the list of blueprints available in this world. This blueprints
     /// can be used to spawning actor into the world.
     SharedPtr<BlueprintLibrary> GetBlueprintLibrary() const;

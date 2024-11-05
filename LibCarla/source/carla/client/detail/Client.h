@@ -413,7 +413,7 @@ namespace detail {
         bool discard_client = false) const;
 
     void UpdateDayNightCycle(const bool active) const;
-
+    void EnableChronoPhysicsMulti(const std::vector<carla::ActorId> &actor_ids);
     /// Returns all the BBs of all the elements of the level
     std::vector<geom::BoundingBox> GetLevelBBs(uint8_t queried_tag) const;
 

@@ -1917,7 +1917,42 @@ BIND_SYNC(is_sensor_enabled_for_ros) << [this](carla::streaming::detail::stream_
     }
     return R<void>::Success();
   };
+BIND_SYNC(enable_chrono_physics_multi) << [this](
+    std::vector<cr::ActorId> ActorIds) -> R<void>
+{
+    REQUIRE_CARLA_EPISODE();
+    UE_LOG(LogCarla, Log, TEXT("111 enable_chrono_physics_multi: Creating ChronoMovementComponent for vehicles"));
 
+    TArray<ACarlaWheeledVehicle*> VehiclesArray;
+    for (auto ActorId : ActorIds)
+    {
+        FCarlaActor* CarlaActor = Episode->FindCarlaActor(ActorId);
+        if (!CarlaActor)
+        {
+            return RespondError(
+                "enable_chrono_physics_multi",
+                ECarlaServerResponse::ActorNotFound,
+                " Actor Id: " + FString::FromInt(ActorId));
+        }
+        ACarlaWheeledVehicle* Vehicle = Cast<ACarlaWheeledVehicle>(CarlaActor->GetActor());
+        if (Vehicle)
+        {
+            VehiclesArray.Add(Vehicle);
+        }
+    }
+
+    if (VehiclesArray.Num() == 0)
+    {
+        RESPOND_ERROR("No valid vehicles found to enable Chrono physics.");
+    }
+    // log we are about to create it.
+    UE_LOG(LogCarla, Log, TEXT("enable_chrono_physics_multi: Creating ChronoMovementComponent for %d vehicles"), VehiclesArray.Num());
+    // Create a ChronoMovementComponent for the vehicles with default parameters
+    UChronoMovementComponent::CreateChronoMovementComponentMulti(VehiclesArray);
+
+    UE_LOG(LogCarla, Log, TEXT("enable_chrono_physics_multi: Vehicles: %d"), VehiclesArray.Num());
+    return R<void>::Success();
+};
   BIND_SYNC(enable_chrono_physics) << [this](
       cr::ActorId ActorId,
       uint64_t MaxSubsteps,

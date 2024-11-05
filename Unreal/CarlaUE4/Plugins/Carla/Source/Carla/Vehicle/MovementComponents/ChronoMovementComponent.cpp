@@ -18,6 +18,68 @@
 #include "Carla/Util/RayTracer.h"
 
 
+void UChronoMovementComponent::CreateChronoMovementComponentMulti(
+    const TArray<ACarlaWheeledVehicle*>& Vehicles,
+    uint64_t MaxSubsteps,
+    float MaxSubstepDeltaTime,
+    FString VehicleJSON,
+    FString PowertrainJSON,
+    FString TireJSON,
+    FString BaseJSONPath)
+{
+    if (Vehicles.Num() == 0)
+    {
+        return;
+    }
+
+    // Create the ChronoMovementComponents
+    ACarlaWheeledVehicle* Tractor = Vehicles[0];
+    ACarlaWheeledVehicle* Revoy = Vehicles[1];
+    ACarlaWheeledVehicle* Trailer = Vehicles[2];
+    if (!Tractor || !Revoy || !Trailer)
+    {
+        UE_LOG(LogCarla, Error, TEXT("CreateChronoMovementComponentMulti: Some CarlaVehicle Null"));
+        return;
+    }
+
+    UChronoMovementComponent* TractorChronoMovement = NewObject<UChronoMovementComponent>(Tractor);
+    UChronoMovementComponent* RevoyChronoMovement = NewObject<UChronoMovementComponent>(Revoy);
+    UChronoMovementComponent* TrailerChronoMovement = NewObject<UChronoMovementComponent>(Trailer);
+  
+    if (!TractorChronoMovement || !RevoyChronoMovement || !TrailerChronoMovement)
+    {
+        UE_LOG(LogCarla, Error, TEXT("CreateChronoMovementComponentMulti: Some ChronoMovementComponent Null"));
+        return;
+    }
+
+    // Set the properties
+    TractorChronoMovement->MaxSubsteps = MaxSubsteps;
+    TractorChronoMovement->MaxSubstepDeltaTime = MaxSubstepDeltaTime;
+    TractorChronoMovement->VehicleJSON = VehicleJSON;
+    TractorChronoMovement->PowertrainJSON = PowertrainJSON;
+    TractorChronoMovement->TireJSON = TireJSON;
+    TractorChronoMovement->BaseJSONPath = BaseJSONPath;
+    TractorChronoMovement->RegisterComponent();
+
+
+    RevoyChronoMovement->MaxSubsteps = MaxSubsteps;
+    RevoyChronoMovement->MaxSubstepDeltaTime = MaxSubstepDeltaTime;
+    RevoyChronoMovement->VehicleJSON = VehicleJSON;
+    RevoyChronoMovement->PowertrainJSON = PowertrainJSON;
+    RevoyChronoMovement->TireJSON = TireJSON;
+    RevoyChronoMovement->BaseJSONPath = BaseJSONPath;
+    RevoyChronoMovement->RegisterComponent();
+  
+
+    TrailerChronoMovement->MaxSubsteps = MaxSubsteps;
+    TrailerChronoMovement->MaxSubstepDeltaTime = MaxSubstepDeltaTime;
+    TrailerChronoMovement->VehicleJSON = VehicleJSON;
+    TrailerChronoMovement->PowertrainJSON = PowertrainJSON;
+    TrailerChronoMovement->TireJSON = TireJSON;
+    TrailerChronoMovement->BaseJSONPath = BaseJSONPath;
+    TrailerChronoMovement->RegisterComponent();
+}
+
 void UChronoMovementComponent::CreateChronoMovementComponent(
     ACarlaWheeledVehicle* Vehicle,
     uint64_t MaxSubsteps,
@@ -176,8 +238,26 @@ void UChronoMovementComponent::InitializeChronoVehicle()
 
   UE_LOG(LogCarla, Log, TEXT("Loading Chrono Vehicle"));
   // Create JSON vehicle
-  Vehicle = chrono_types::make_shared<kraz::RevoyKraz>(&Sys);
-  Vehicle->Initialize();
+  if (revoyType == RevoyType::Tractor) {
+  UE_LOG(LogCarla, Log, TEXT("Loading Kraz Tractor Vehicle"));
+    auto KrazTractor = chrono_types::make_shared<kraz::Kraz_tractor>(&Sys);
+    KrazTractor->Initialize();
+    Vehicle = std::static_pointer_cast<chrono::vehicle::ChVehicle>(KrazTractor);
+
+  } else if (revoyType == RevoyType::Revoy) {
+  UE_LOG(LogCarla, Log, TEXT("Loading Kraz Revoy Vehicle"));
+    auto KrazRevoy = chrono_types::make_shared<kraz::Revoy>(&Sys);
+    KrazRevoy->Initialize();
+    Vehicle = std::static_pointer_cast<chrono::vehicle::ChVehicle>(KrazRevoy);
+
+  }
+  } else if (revoyType == RevoyType::Trailer) {
+  UE_LOG(LogCarla, Log, TEXT("Loading Kraz Trailer Vehicle"));
+    auto KrazTrailer = chrono_types::make_shared<kraz::Trailer>(&Sys);
+    KrazTrailer->Initialize();
+    Vehicle = std::static_pointer_cast<chrono::vehicle::ChVehicle>(KrazTrailer);
+  }
+
   Vehicle->SetInitPosition(ChCoordsys<>(ChronoLocation, ChronoRotation));  
   UE_LOG(LogCarla, Log, TEXT("Chrono vehicle initialized"));
 }

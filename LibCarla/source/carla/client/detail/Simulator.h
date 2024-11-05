@@ -259,6 +259,11 @@ namespace detail {
       _client.SetWeatherParameters(weather);
     }
 
+    void EnableChronoPhysicsMulti(const std::vector<ActorId> &actor_ids) {
+      std::cout << "333 enable_chrono_physics_multi: Calling" << std::endl;
+    _client.EnableChronoPhysicsMulti(actor_ids);
+  }
+
     rpc::VehiclePhysicsControl GetVehiclePhysicsControl(const Vehicle &vehicle) const {
       return _client.GetVehiclePhysicsControl(vehicle.GetId());
     }

@@ -10,6 +10,7 @@
 #include <carla/client/World.h>
 #include <carla/rpc/EnvironmentObject.h>
 #include <carla/rpc/ObjectLabel.h>
+#include <boost/python/stl_iterator.hpp>
 
 #include <boost/python/suite/indexing/vector_indexing_suite.hpp>
 
@@ -105,6 +106,22 @@ static auto GetEnvironmentObjects(const carla::client::World &self, uint8_t quer
     result.append(object);
   }
   return result;
+}
+
+// Helper function to convert a Python list to a C++ vector of SharedPtr<cc::Vehicle>
+static std::vector<carla::SharedPtr<carla::client::Vehicle>> PythonListToVehicleVector(
+    boost::python::object py_vehicle_list) {
+  std::vector<carla::SharedPtr<carla::client::Vehicle>> vehicles;
+
+  // Obtain Python iterable
+  boost::python::stl_input_iterator<carla::SharedPtr<carla::client::Vehicle>> begin(py_vehicle_list), end;
+
+  // Iterate over the Python list and append to the C++ vector
+  for (; begin != end; ++begin) {
+    vehicles.push_back(*begin);
+  }
+
+  return vehicles;
 }
 
 static void EnableEnvironmentObjects(
@@ -320,7 +337,6 @@ void export_world() {
     .def("get_snapshot", &cc::World::GetSnapshot)
     .def("get_actor", CONST_CALL_WITHOUT_GIL_1(cc::World, GetActor, carla::ActorId), (arg("actor_id")))
     .def("get_actors", CONST_CALL_WITHOUT_GIL(cc::World, GetActors))
-    .def("enable_multi_vehicle_chrono", &cc::World::EnableMultiVehicleChrono, (arg("vehicle_ids")))
     .def("get_actors", &GetActorsById, (arg("actor_ids")))
     .def("spawn_actor", SPAWN_ACTOR_WITHOUT_GIL(SpawnActor))
     .def("try_spawn_actor", SPAWN_ACTOR_WITHOUT_GIL(TrySpawnActor))
@@ -357,6 +373,28 @@ void export_world() {
     .def("apply_textures_to_objects", +[](cc::World &self, boost::python::list &list, const cr::TextureColor& diffuse_texture, const cr::TextureFloatColor& emissive_texture, const cr::TextureFloatColor& normal_texture, const cr::TextureFloatColor& ao_roughness_metallic_emissive_texture) {
         self.ApplyTexturesToObjects(PythonLitstToVector<std::string>(list), diffuse_texture, emissive_texture, normal_texture, ao_roughness_metallic_emissive_texture);
       }, (arg("objects_name_list"), arg("diffuse_texture"), arg("emissive_texture"), arg("normal_texture"), arg("ao_roughness_metallic_emissive_texture")))
+    .def("enable_chrono_physics_multi", +[](
+      cc::World &self,
+      boost::python::object py_vehicle_list) {
+      std::vector<carla::SharedPtr<cc::Vehicle>> vehicles = PythonListToVehicleVector(py_vehicle_list);
+      std::vector<carla::ActorId> actor_ids;
+      for (const auto &vehicle : vehicles) {
+        if (vehicle != nullptr) {
+        actor_ids.push_back(vehicle->GetId());
+      }
+      }
+      // print out the actor ids.
+      for (const auto &id : actor_ids) {
+        std::cout << "Actor ID: " << id << std::endl;
+      }
+      // Release the GIL
+      carla::PythonUtil::ReleaseGIL unlock;
+      std::cout << "222 enable_chrono_physics_multi: Calling" << std::endl;
+      // just log with standard library.
+      self.GetEpisode().Lock()->EnableChronoPhysicsMulti(actor_ids);
+
+
+    }, (boost::python::arg("vehicles")))
     .def(self_ns::str(self_ns::self))
   ;
 
@@ -398,5 +436,7 @@ void export_world() {
          arg("color")=cc::DebugHelper::Color(255u, 0u, 0u),
          arg("life_time")=-1.0f,
          arg("persistent_lines")=true))
+
+
   ;
 }
