@@ -13,6 +13,7 @@
 #include <carla/rpc/String.h>
 #ifdef WITH_CHRONO
 #include "chrono_vehicle/utils/ChUtilsJSON.h"
+#include "chrono_models/vehicle/kraz/RevoyKraz.h"
 #endif
 #include "compiler/enable-ue4-macros.h"
 #include "Carla/Util/RayTracer.h"
@@ -27,57 +28,59 @@ void UChronoMovementComponent::CreateChronoMovementComponentMulti(
     FString TireJSON,
     FString BaseJSONPath)
 {
-    if (Vehicles.Num() == 0)
-    {
-        return;
-    }
+  UE_LOG(LogCarla, Log, TEXT("CreateChronoMovementComponentMulti"));
+  if (Vehicles.Num() != 3)
+  {
+      UE_LOG(LogCarla, Error, TEXT("CreateChronoMovementComponentMulti: Wrong num vehicles (need 3)"));
+      return;
+  }
 
-    // Create the ChronoMovementComponents
-    ACarlaWheeledVehicle* Tractor = Vehicles[0];
-    ACarlaWheeledVehicle* Revoy = Vehicles[1];
-    ACarlaWheeledVehicle* Trailer = Vehicles[2];
-    if (!Tractor || !Revoy || !Trailer)
-    {
-        UE_LOG(LogCarla, Error, TEXT("CreateChronoMovementComponentMulti: Some CarlaVehicle Null"));
-        return;
-    }
-
-    UChronoMovementComponent* TractorChronoMovement = NewObject<UChronoMovementComponent>(Tractor);
-    UChronoMovementComponent* RevoyChronoMovement = NewObject<UChronoMovementComponent>(Revoy);
-    UChronoMovementComponent* TrailerChronoMovement = NewObject<UChronoMovementComponent>(Trailer);
+  UE_LOG(LogCarla, Log, TEXT("CreateChronoMovementComponentMulti: ACarlaWheeledVehicle for Tractor, Revoy, Trailer"));
+  // Create the ChronoMovementComponents
+  ACarlaWheeledVehicle* Tractor = Vehicles[0];
+  ACarlaWheeledVehicle* Revoy = Vehicles[1];
+  ACarlaWheeledVehicle* Trailer = Vehicles[2];
   
-    if (!TractorChronoMovement || !RevoyChronoMovement || !TrailerChronoMovement)
-    {
-        UE_LOG(LogCarla, Error, TEXT("CreateChronoMovementComponentMulti: Some ChronoMovementComponent Null"));
-        return;
-    }
+  if (!Tractor || !Revoy || !Trailer)
+  {
+      UE_LOG(LogCarla, Error, TEXT("CreateChronoMovementComponentMulti: Some CarlaVehicle Null"));
+      return;
+  }
 
-    // Set the properties
-    TractorChronoMovement->MaxSubsteps = MaxSubsteps;
-    TractorChronoMovement->MaxSubstepDeltaTime = MaxSubstepDeltaTime;
-    TractorChronoMovement->VehicleJSON = VehicleJSON;
-    TractorChronoMovement->PowertrainJSON = PowertrainJSON;
-    TractorChronoMovement->TireJSON = TireJSON;
-    TractorChronoMovement->BaseJSONPath = BaseJSONPath;
-    TractorChronoMovement->RegisterComponent();
+  UE_LOG(LogCarla, Log, TEXT("CreateChronoMovementComponentMulti: ChronoMovementComponenet for Tractor, Revoy, Trailer"));
+  UChronoMovementComponent* TractorChronoMovementComponent = NewObject<UChronoMovementComponent>(Tractor);
+  UChronoMovementComponent* RevoyChronoMovementComponent = NewObject<UChronoMovementComponent>(Revoy);
+  UChronoMovementComponent* TrailerChronoMovementComponent = NewObject<UChronoMovementComponent>(Trailer);
+
+  if (!TractorChronoMovementComponent || !RevoyChronoMovementComponent || !TrailerChronoMovementComponent)
+  {
+      UE_LOG(LogCarla, Error, TEXT("CreateChronoMovementComponentMulti: Some ChronoMovementComponent Null"));
+      return;
+  }
+
+  // Set the properties
+  UE_LOG(LogCarla, Log, TEXT("CreateChronoMovementComponentMulti: Set Tractor Properties"));
+  TractorChronoMovementComponent->MaxSubsteps = MaxSubsteps;
+  TractorChronoMovementComponent->RevoyType = RevoyTypeTractor;
+  TractorChronoMovementComponent->MaxSubstepDeltaTime = MaxSubstepDeltaTime;
+  Tractor->SetCarlaMovementComponent(TractorChronoMovementComponent);
+  TractorChronoMovementComponent->RegisterComponent();
 
 
-    RevoyChronoMovement->MaxSubsteps = MaxSubsteps;
-    RevoyChronoMovement->MaxSubstepDeltaTime = MaxSubstepDeltaTime;
-    RevoyChronoMovement->VehicleJSON = VehicleJSON;
-    RevoyChronoMovement->PowertrainJSON = PowertrainJSON;
-    RevoyChronoMovement->TireJSON = TireJSON;
-    RevoyChronoMovement->BaseJSONPath = BaseJSONPath;
-    RevoyChronoMovement->RegisterComponent();
-  
+  UE_LOG(LogCarla, Log, TEXT("CreateChronoMovementComponentMulti: Set Revoy Properties"));
+  RevoyChronoMovementComponent->MaxSubsteps = MaxSubsteps;
+  RevoyChronoMovementComponent->RevoyType = RevoyTypeRevoy;
+  RevoyChronoMovementComponent->MaxSubstepDeltaTime = MaxSubstepDeltaTime;
+  Revoy->SetCarlaMovementComponent(RevoyChronoMovementComponent);
+  RevoyChronoMovementComponent->RegisterComponent();
 
-    TrailerChronoMovement->MaxSubsteps = MaxSubsteps;
-    TrailerChronoMovement->MaxSubstepDeltaTime = MaxSubstepDeltaTime;
-    TrailerChronoMovement->VehicleJSON = VehicleJSON;
-    TrailerChronoMovement->PowertrainJSON = PowertrainJSON;
-    TrailerChronoMovement->TireJSON = TireJSON;
-    TrailerChronoMovement->BaseJSONPath = BaseJSONPath;
-    TrailerChronoMovement->RegisterComponent();
+
+  UE_LOG(LogCarla, Log, TEXT("CreateChronoMovementComponentMulti: Set Trailer Properties"));
+  TrailerChronoMovementComponent->MaxSubsteps = MaxSubsteps;
+  TrailerChronoMovementComponent->RevoyType = RevoyTypeTrailer;
+  TrailerChronoMovementComponent->MaxSubstepDeltaTime = MaxSubstepDeltaTime;
+  Trailer->SetCarlaMovementComponent(TrailerChronoMovementComponent);
+  TrailerChronoMovementComponent->RegisterComponent();  
 }
 
 void UChronoMovementComponent::CreateChronoMovementComponent(
@@ -148,10 +151,7 @@ FQuat ChronoToUE4Quat(const ChQuaternion<>& quat)
   return FQuat(-quat.e1(), quat.e2(), -quat.e3(), quat.e0());
 }
 
-UERayCastTerrain::UERayCastTerrain(
-    ACarlaWheeledVehicle* UEVehicle,
-    chrono::vehicle::ChVehicle* ChrVehicle)
-    : CarlaVehicle(UEVehicle), ChronoVehicle(ChrVehicle) {}
+UERayCastTerrain::UERayCastTerrain(ACarlaWheeledVehicle* UEVehicle) : CarlaVehicle(UEVehicle) {}
 
 std::pair<bool, FHitResult>
     UERayCastTerrain::GetTerrainProperties(const FVector &Location) const
@@ -184,6 +184,7 @@ double UERayCastTerrain::GetHeight(const ChVector3d& loc) const
   }
   return -1000000.0;
 }
+
 ChVector3d UERayCastTerrain::GetNormal(const ChVector3d& loc) const
 {
   FVector Location = ChronoToUE4Location(loc);
@@ -217,7 +218,7 @@ void UChronoMovementComponent::BeginPlay()
   InitializeChronoVehicle();
 
   // Create the terrain
-  Terrain = chrono_types::make_shared<UERayCastTerrain>(CarlaVehicle, &Vehicle->GetTractor());
+  Terrain = chrono_types::make_shared<UERayCastTerrain>(CarlaVehicle);
 
   CarlaVehicle->OnActorHit.AddDynamic(
       this, &UChronoMovementComponent::OnVehicleHit);
@@ -227,39 +228,40 @@ void UChronoMovementComponent::BeginPlay()
       ECollisionChannel::ECC_WorldStatic, ECollisionResponse::ECR_Overlap);
 }
 
+// forgive me
+static std::shared_ptr<kraz::RevoyKraz> RevoyKraz = nullptr;
+
 void UChronoMovementComponent::InitializeChronoVehicle()
 {
+
+  UE_LOG(LogCarla, Log, TEXT("InitializeChronoVehicle"));
+  
+  FVector Location = CarlaVehicle->GetActorLocation() + FVector(0,0,25);
+  FQuat Rotation = CarlaVehicle->GetActorRotation().Quaternion();
+  auto ChronoLocation = UE4LocationToChrono(Location);
+  auto ChronoRotation = UE4QuatToChrono(Rotation);
+  ChCoordsys<> Choord(ChronoLocation, ChronoRotation);
+ 
+  if (RevoyType != RevoyTypeNone && !RevoyKraz) {
+    UE_LOG(LogCarla, Log, TEXT("First time Revoy, init static RevoyKraz"));
+    RevoyKraz = chrono_types::make_shared<chrono::vehicle::kraz::RevoyKraz>(&Sys, Choord);
+    RevoyKraz->Initialize();
+  }
+  
   // Initial location with small offset to prevent falling through the ground
-  FVector VehicleLocation = CarlaVehicle->GetActorLocation() + FVector(0,0,25);
-  FQuat VehicleRotation = CarlaVehicle->GetActorRotation().Quaternion();
-  auto ChronoLocation = UE4LocationToChrono(VehicleLocation);
-  auto ChronoRotation = UE4QuatToChrono(VehicleRotation);
-
-
-  UE_LOG(LogCarla, Log, TEXT("Loading Chrono Vehicle"));
-  // Create JSON vehicle
-  if (revoyType == RevoyType::Tractor) {
-  UE_LOG(LogCarla, Log, TEXT("Loading Kraz Tractor Vehicle"));
-    auto KrazTractor = chrono_types::make_shared<kraz::Kraz_tractor>(&Sys);
-    KrazTractor->Initialize();
-    Vehicle = std::static_pointer_cast<chrono::vehicle::ChVehicle>(KrazTractor);
-
-  } else if (revoyType == RevoyType::Revoy) {
-  UE_LOG(LogCarla, Log, TEXT("Loading Kraz Revoy Vehicle"));
-    auto KrazRevoy = chrono_types::make_shared<kraz::Revoy>(&Sys);
-    KrazRevoy->Initialize();
-    Vehicle = std::static_pointer_cast<chrono::vehicle::ChVehicle>(KrazRevoy);
-
+  if (RevoyType == RevoyTypeTractor) {
+    UE_LOG(LogCarla, Log, TEXT("Loading Kraz Tractor Vehicle"));
+    Vehicle = RevoyKraz->GetTractor();
+  } else if (RevoyType == RevoyTypeRevoy) {
+    UE_LOG(LogCarla, Log, TEXT("Loading Kraz Revoy Vehicle"));
+    Vehicle = RevoyKraz->GetRevoy();
+  } else if (RevoyType == RevoyTypeTrailer) {
+    UE_LOG(LogCarla, Log, TEXT("Loading Kraz Trailer Vehicle"));
+    Trailer = RevoyKraz->GetTrailer();
   }
-  } else if (revoyType == RevoyType::Trailer) {
-  UE_LOG(LogCarla, Log, TEXT("Loading Kraz Trailer Vehicle"));
-    auto KrazTrailer = chrono_types::make_shared<kraz::Trailer>(&Sys);
-    KrazTrailer->Initialize();
-    Vehicle = std::static_pointer_cast<chrono::vehicle::ChVehicle>(KrazTrailer);
-  }
-
-  Vehicle->SetInitPosition(ChCoordsys<>(ChronoLocation, ChronoRotation));  
+  
   UE_LOG(LogCarla, Log, TEXT("Chrono vehicle initialized"));
+  
 }
 
 void UChronoMovementComponent::ProcessControl(FVehicleControl &Control)
@@ -267,7 +269,7 @@ void UChronoMovementComponent::ProcessControl(FVehicleControl &Control)
   VehicleControl = Control;
   if (Vehicle)
   {
-    auto PowerTrain = Vehicle->GetTractor().GetPowertrainAssembly();
+    auto PowerTrain = Vehicle->GetPowertrainAssembly();
     if (PowerTrain)
     {
       auto Transmission = PowerTrain->GetTransmission();
@@ -322,12 +324,29 @@ void UChronoMovementComponent::TickComponent(float DeltaTime,
   }
 
   const auto ChronoPositionOffset = ChVector3d(0,0,-0.25f);
-  auto VehiclePos = Vehicle->GetTractor().GetPos() + ChronoPositionOffset;
-  auto VehicleRot = Vehicle->GetTractor().GetRot();
-  double Time = Vehicle->GetSystem()->GetChTime();
+  auto Pos = ChVector3d(0,0,0);
+  auto Rot = ChQuaternion<double>(0,0,0,1);
+  double Time = 0;
+  if (Vehicle) {
+    Pos = Vehicle->GetPos() + ChronoPositionOffset;
+    Rot = Vehicle->GetRot();
+    Time = Vehicle->GetChTime();
+  } else if (Trailer) {
+    Pos = Trailer->GetPos() + ChronoPositionOffset;
+    Rot = Trailer->GetRot();
+    Time = Trailer->GetChTime();
+  }
 
-  FVector NewLocation = ChronoToUE4Location(VehiclePos);
-  FQuat NewRotation = ChronoToUE4Quat(VehicleRot);
+  if (RevoyType == RevoyTypeTractor) {
+    UE_LOG(LogCarla, Log, TEXT("[chronomove]: Tractor %f %f %f"), Pos.x(), Pos.y(), Pos.z());
+  } else if (RevoyType == RevoyTypeRevoy) {
+    UE_LOG(LogCarla, Log, TEXT("[chronomove]: Revoy %f %f %f"), Pos.x(), Pos.y(), Pos.z());
+  } else if (RevoyType == RevoyTypeTrailer) {
+    UE_LOG(LogCarla, Log, TEXT("[chronomove]: Trailer %f %f %f"), Pos.x(), Pos.y(), Pos.z())
+  }
+  
+  FVector NewLocation = ChronoToUE4Location(Pos);
+  FQuat NewRotation = ChronoToUE4Quat(Rot);
   if(NewLocation.ContainsNaN() || NewRotation.ContainsNaN())
   {
     UE_LOG(LogCarla, Warning, TEXT(
@@ -341,22 +360,23 @@ void UChronoMovementComponent::TickComponent(float DeltaTime,
   const float ChronoPitchOffset = 2.5f;
   NewRotator.Add(ChronoPitchOffset, 0.f, 0.f); 
   CarlaVehicle->SetActorRotation(NewRotator);
-  
-  UE_LOG(LogCarla, Log, TEXT("[chronomove]: Tractor %f %f %f"), VehiclePos.x(), VehiclePos.y(), VehiclePos.z());
-  auto RevoyPos = Vehicle->GetRevoy().GetPos() + ChronoPositionOffset;
-  UE_LOG(LogCarla, Log, TEXT("[chronomove]: Revoy %f %f %f"), RevoyPos.x(), RevoyPos.y(), RevoyPos.z());
-  auto TrailerPos = Vehicle->GetTrailer().GetPos() + ChronoPositionOffset;
-  UE_LOG(LogCarla, Log, TEXT("[chronomove]: Trailer %f %f %f"), TrailerPos.x(), TrailerPos.y(), TrailerPos.z());
+
 }
 
 void UChronoMovementComponent::AdvanceChronoSimulation(float StepSize)
 {
-  double Time = Vehicle->GetSystem()->GetChTime();
   double Throttle = VehicleControl.Throttle;
   double Steering = -VehicleControl.Steer; // RHF to LHF
   double Brake = VehicleControl.Brake + VehicleControl.bHandBrake;
-  Vehicle->Synchronize(Time, {Steering, Throttle, Brake}, *Terrain.get());
-  Vehicle->Advance(StepSize);
+  if (Vehicle) {
+    double Time = Vehicle->GetChTime();
+    Vehicle->Synchronize(Time, {Steering, Throttle, Brake}, *Terrain.get());
+    Vehicle->Advance(StepSize);
+  } else if (Trailer) {
+    double Time = Trailer->GetChTime();
+    Trailer->Synchronize(Time, {Steering, Throttle, Brake}, *Terrain.get());
+    Trailer->Advance(StepSize);
+  }
   Sys.DoStepDynamics(StepSize);
 }
 
@@ -365,7 +385,12 @@ FVector UChronoMovementComponent::GetVelocity() const
   if (Vehicle)
   {
     return ChronoToUE4Location(
-        Vehicle->GetTractor().GetPointVelocity(ChVector3d(0,0,0)));
+        Vehicle->GetPointVelocity(ChVector3d(0,0,0)));
+  }
+  if (Trailer)
+  {
+    return ChronoToUE4Location(
+        Trailer->GetPointVelocity(ChVector3d(0,0,0)));
   }
   return FVector();
 }
@@ -374,7 +399,7 @@ int32 UChronoMovementComponent::GetVehicleCurrentGear() const
 {
   if (Vehicle)
   {
-    auto PowerTrain = Vehicle->GetTractor().GetPowertrainAssembly();
+    auto PowerTrain = Vehicle->GetPowertrainAssembly();
     if (PowerTrain)
     {
       auto Transmission = PowerTrain->GetTransmission();
@@ -388,7 +413,7 @@ int32 UChronoMovementComponent::GetVehicleCurrentGear() const
 
 float UChronoMovementComponent::GetVehicleForwardSpeed() const
 {
-  if (Vehicle)
+  if (Vehicle || Trailer)
   {
     return GetVelocity().X;
   }
@@ -397,6 +422,10 @@ float UChronoMovementComponent::GetVehicleForwardSpeed() const
 
 void UChronoMovementComponent::EndPlay(const EEndPlayReason::Type EndPlayReason)
 {
+
+  /// free up the static chrono assembly
+  RevoyKraz.reset();  
+  
   if(!CarlaVehicle)
   {
     return;

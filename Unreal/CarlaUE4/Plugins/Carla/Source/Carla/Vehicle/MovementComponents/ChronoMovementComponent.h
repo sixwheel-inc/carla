@@ -22,7 +22,8 @@
 #include "chrono_vehicle/ChVehicleModelData.h"
 #include "chrono_vehicle/ChTerrain.h"
 #include "chrono_vehicle/driver/ChDataDriver.h"
-#include "chrono_vehicle/wheeled_vehicle/vehicle/WheeledVehicle.h"
+#include "chrono_vehicle/wheeled_vehicle/ChWheeledVehicle.h"
+#include "chrono_vehicle/wheeled_vehicle/ChWheeledTrailer.h"
 
 #if defined(__clang__)
 #  pragma clang diagnostic pop
@@ -37,14 +38,14 @@
 class UERayCastTerrain : public chrono::vehicle::ChTerrain
 {
   ACarlaWheeledVehicle* CarlaVehicle;
-  chrono::vehicle::ChVehicle* ChronoVehicle;
+  
 public:
-  UERayCastTerrain(ACarlaWheeledVehicle* UEVehicle, chrono::vehicle::ChVehicle* ChrVehicle);
+  UERayCastTerrain(ACarlaWheeledVehicle* UEVehicle);
 
   std::pair<bool, FHitResult> GetTerrainProperties(const FVector &Location) const;
-  virtual double GetHeight(const chrono::ChVector<>& loc) const override;
-  virtual chrono::ChVector<> GetNormal(const chrono::ChVector<>& loc) const override;
-  virtual float GetCoefficientFriction(const chrono::ChVector<>& loc) const override;
+  virtual double GetHeight(const chrono::ChVector3d& loc) const override;
+  virtual chrono::ChVector3d GetNormal(const chrono::ChVector3d& loc) const override;
+  virtual float GetCoefficientFriction(const chrono::ChVector3d& loc) const override;
 };
 #endif
 
@@ -55,7 +56,12 @@ class CARLA_API UChronoMovementComponent : public UBaseCarlaMovementComponent
 
 #ifdef WITH_CHRONO
   chrono::ChSystemNSC Sys;
-  std::shared_ptr<chrono::vehicle::ChVehicle> Vehicle;
+  std::shared_ptr<chrono::vehicle::ChWheeledVehicle> Vehicle;
+
+  /// the Trailer does not share a base class w/ Tractor and Revoy
+  /// need to handle it seperately
+  
+  std::shared_ptr<chrono::vehicle::ChWheeledTrailer> Trailer;
   std::shared_ptr<UERayCastTerrain> Terrain;
 #endif
 
@@ -67,13 +73,14 @@ class CARLA_API UChronoMovementComponent : public UBaseCarlaMovementComponent
   FString TireJSON =       "sedan/tire/Sedan_TMeasyTire.json";
   FString BaseJSONPath =   "C:/sixwheel/carla/Build/chrono-install/data/vehicle/";
 
-  enum RevoyType {
-    Tractor,
-    Revoy,
-    Trailer,
+  enum RevoyTypeEnum {
+    RevoyTypeNone,
+    RevoyTypeTractor,
+    RevoyTypeRevoy,
+    RevoyTypeTrailer,
   };
 
-  RevoyType revoyType = Tractor;
+  RevoyTypeEnum RevoyType = RevoyTypeNone;
 
 public:
   static void CreateChronoMovementComponentMulti(
