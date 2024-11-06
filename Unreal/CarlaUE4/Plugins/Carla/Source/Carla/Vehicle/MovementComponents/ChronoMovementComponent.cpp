@@ -458,6 +458,7 @@ void UChronoMovementComponent::OnVehicleHit(AActor *Actor,
     FVector NormalImpulse,
     const FHitResult &Hit)
 {
+  UE_LOG(LogCarla, Log, TEXT("On Vehicle Hit"));
   DisableChronoPhysics();
 }
 
@@ -471,10 +472,13 @@ void UChronoMovementComponent::OnVehicleOverlap(
     bool bFromSweep,
     const FHitResult & SweepResult)
 {
+  
+  UE_LOG(LogCarla, Log, TEXT("On Vehicle Overlap"));
   if (OtherComp->GetCollisionResponseToChannel(
       ECollisionChannel::ECC_WorldDynamic) ==
       ECollisionResponse::ECR_Block)
   {
+    UE_LOG(LogCarla, Log, TEXT("On Vehicle Overlap: Collision Response Channel"));
     DisableChronoPhysics();
   }
 }
