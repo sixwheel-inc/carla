@@ -27,6 +27,7 @@
 #include <rpc/rpc_error.h>
 
 #include <thread>
+#include <iostream>
 
 namespace carla {
 namespace client {
@@ -460,7 +461,7 @@ namespace detail {
     // log calling this.
     std::cout << "444 enable_chrono_physics_multi: Calling" << std::endl;
     _pimpl->AsyncCall("enable_chrono_physics_multi", actor_ids);
-    std::cout << "done" << std:endl;
+    std::cout << "done" << std::endl;
   }
 
   void Client::EnableChronoPhysics(
