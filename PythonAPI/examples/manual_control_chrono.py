@@ -145,6 +145,7 @@ except ImportError:
 # -- Global functions ----------------------------------------------------------
 # ==============================================================================
 
+revoy_vehicles = []
 
 def find_weather_presets():
     rgx = re.compile('.+?(?:(?<=[a-z])(?=[A-Z])|(?<=[A-Z])(?=[A-Z][a-z])|$)')
@@ -237,14 +238,24 @@ class World(object):
             spawn_point.rotation.pitch = 0.0
             self.destroy()
             self.player = self.world.try_spawn_actor(blueprint, spawn_point)
+        
+        spawn_points = self.map.get_spawn_points()
         while self.player is None:
             if not self.map.get_spawn_points():
                 print('There are no spawn points available in your map/town.')
                 print('Please add some Vehicle Spawn Point to your UE4 scene.')
                 sys.exit(1)
-            spawn_points = self.map.get_spawn_points()
-            spawn_point = random.choice(spawn_points) if spawn_points else carla.Transform()
+            spawn_point = spawn_points[0] if spawn_points else carla.Transform()
             self.player = self.world.try_spawn_actor(blueprint, spawn_point)
+            
+        # Spawn two additional vehicles
+        revoy_vehicles.append(self.player)
+        spawn_points = self.map.get_spawn_points()
+        for i in range(2):
+            transform = spawn_points[i+1]
+            vehicle = self.world.spawn_actor(blueprint, transform)
+            revoy_vehicles.append(vehicle)
+            
         # Set up the sensors.
         self.collision_sensor = CollisionSensor(self.player, self.hud)
         self.lane_invasion_sensor = LaneInvasionSensor(self.player, self.hud)
@@ -423,11 +434,9 @@ class KeyboardControl(object):
                     print("o pressed")
                     if not self._chrono_enabled:
                         self._chrono_enabled = True
-                        vehicle_json = "sedan\\vehicle\\Sedan_Vehicle.json"
-                        powertrain_json = "sedan\\powertrain\\Sedan_SimpleMapPowertrain.json"
-                        tire_json = "sedan\\tire\\Sedan_TMeasyTire.json"
-                        base_path = "C:\\sixwheel\\carla\\Build\\chrono-install\\data\\vehicle\\"
-                        world.player.enable_chrono_physics(5000, 0.002, vehicle_json, powertrain_json, tire_json, base_path)
+                        client.get_world().enable_chrono_physics_multi(
+                            revoy_vehicles
+                        )
                     else:
                         self._chrono_enabled = False
                         world.player.restore_physx_physics()

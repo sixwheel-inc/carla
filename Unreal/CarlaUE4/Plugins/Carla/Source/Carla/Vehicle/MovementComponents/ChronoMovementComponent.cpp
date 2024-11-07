@@ -208,7 +208,7 @@ void UChronoMovementComponent::BeginPlay()
 
   DisableUE4VehiclePhysics();
 
-  // // // Chrono System
+  // Chrono System
   Sys.SetGravitationalAcceleration(ChVector3d(0, 0, -9.81));
   
   Sys.SetSolverType(ChSolver::Type::BARZILAIBORWEIN);
@@ -222,8 +222,8 @@ void UChronoMovementComponent::BeginPlay()
 
   CarlaVehicle->OnActorHit.AddDynamic(
       this, &UChronoMovementComponent::OnVehicleHit);
-  CarlaVehicle->GetMesh()->OnComponentBeginOverlap.AddDynamic(
-      this, &UChronoMovementComponent::OnVehicleOverlap);
+  // CarlaVehicle->GetMesh()->OnComponentBeginOverlap.AddDynamic(
+  //     this, &UChronoMovementComponent::OnVehicleOverlap);
   CarlaVehicle->GetMesh()->SetCollisionResponseToChannel(
       ECollisionChannel::ECC_WorldStatic, ECollisionResponse::ECR_Overlap);
 }
@@ -423,6 +423,7 @@ float UChronoMovementComponent::GetVehicleForwardSpeed() const
 void UChronoMovementComponent::EndPlay(const EEndPlayReason::Type EndPlayReason)
 {
 
+  UE_LOG(LogCarla, Log, TEXT("EndPlay"));
   /// free up the static chrono assembly
   RevoyKraz.reset();  
   
@@ -442,6 +443,7 @@ void UChronoMovementComponent::EndPlay(const EEndPlayReason::Type EndPlayReason)
 
 void UChronoMovementComponent::DisableChronoPhysics()
 {
+  UE_LOG(LogCarla, Log, TEXT("DisableChronoPhysics"));
   this->SetComponentTickEnabled(false);
   EnableUE4VehiclePhysics(true);
   CarlaVehicle->OnActorHit.RemoveDynamic(this, &UChronoMovementComponent::OnVehicleHit);
