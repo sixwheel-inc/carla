@@ -65,6 +65,7 @@ from __future__ import print_function
 import glob
 import os
 import sys
+import time
 
 try:
     sys.path.append(glob.glob('../carla/dist/carla-*%d.%d-%s.egg' % (
@@ -209,7 +210,40 @@ class World(object):
         self._weather_presets = find_weather_presets()
         self._weather_index = 0
         self._actor_filter = args.filter
+
+        # Initialize dimensions before restart
+        # Update dimensions to match actual spawned vehicles
+        self.tractor_length = 5.86    # Matches actual tractor length
+        self.tractor_width = 2.92     # Matches actual tractor width
+        self.trailer_length = 8.22    # Matches actual trailer length
+        self.trailer_width = 2.78     # Matches actual trailer width
+        
+        # Calculate fifth wheel position
+        self.fifth_wheel_offset = 1.8  # Distance from rear to fifth wheel
+        
+        # Calculate kingpin position
+        self.kingpin_offset = 0    # Distance from front to kingpin
+        
+        # Initialize other parameters
+        self.tilt_angle = 0
+        self.tilt_direction = 1
+        self.max_tilt = 10
+        self.tilt_speed = 0.2          # Reduced for more realistic movement
+        self.max_steering_angle = 15.0  # Maximum realistic steering angle in degrees
+        self.wheel_base = self.tractor_length * 0.60  # Typically about 60% of tractor length
+        self.movement_speed = self.wheel_base * 0.01  # Scale movement speed to wheelbase
+
+        # Add timer for environment randomization
+        self.last_randomization_time = time.time()
+        self.randomization_interval = 5  # Changed from 300 to 5 seconds
+        
+        # Initialize weather and time of day
+        self.randomize_environment()
+        
+        # Now call restart after dimensions are set
         self.restart()
+        
+        # Rest of initialization
         self.world.on_tick(hud.on_world_tick)
         self.recording_enabled = False
         self.recording_start = 0
@@ -230,38 +264,6 @@ class World(object):
             carla.MapLayer.Walls,
             carla.MapLayer.All
         ]
-        self.tilt_angle = 0
-        self.tilt_direction = 1
-        self.max_tilt = 20
-        self.tilt_speed = 0.2  # degrees per tick
-        
-        # Base dimensions from actual tractor measurement
-        self.tractor_length = 5.86    # From actual measurement
-        self.tractor_width = 2.92     # From actual measurement
-        
-        # Calculate other dimensions based on typical proportions
-        self.wheel_base = self.tractor_length * 0.60      # Typically about 60% of tractor length
-        self.fifth_wheel_offset = self.tractor_length * 0.15  # Typically about 15% from rear
-        
-        # Standard trailer proportions relative to tractor
-        self.trailer_length = self.tractor_length * 2.2    # Typical ratio for EU trucks
-        self.trailer_width = self.tractor_width            # Usually matches tractor width
-        self.kingpin_offset = self.trailer_width * 0.3     # Typical proportion for kingpin placement
-        
-        # Print calculated dimensions for verification
-        print(f"\nCalculated dimensions based on actual tractor size:")
-        print(f"Wheel base: {self.wheel_base:.2f}m")
-        print(f"Fifth wheel offset: {self.fifth_wheel_offset:.2f}m")
-        print(f"Trailer length: {self.trailer_length:.2f}m")
-        print(f"Trailer width: {self.trailer_width:.2f}m")
-        print(f"Kingpin offset: {self.kingpin_offset:.2f}m")
-        
-        # Movement parameters adjusted for actual size
-        self.tilt_angle = 0
-        self.tilt_direction = 1
-        self.max_steering_angle = 35.0  # Maximum realistic steering angle in degrees
-        self.tilt_speed = 0.2          # Reduced for more realistic movement
-        self.movement_speed = self.wheel_base * 0.01  # Scale movement speed to wheelbase
 
     def restart(self):
         self.player_max_speed = 1.589
@@ -288,13 +290,41 @@ class World(object):
             self.show_vehicle_telemetry = False
             self.modify_vehicle_physics(self.player)
         while self.player is None:
-            spawn_point = carla.Transform(carla.Location(-114.30, 71.84, 1), carla.Rotation(0, 90, 0))
+            spawn_point = carla.Transform(carla.Location(-114.30, 78.84, 1), carla.Rotation(0, 90, 0))
             self.playerTrailer = self.world.try_spawn_actor(blueprintTrailer, spawn_point)
             forward_vector = spawn_point.get_forward_vector() * 7
             spawn_point.location += forward_vector
             self.player = self.world.try_spawn_actor(blueprint, spawn_point)
             self.show_vehicle_telemetry = False
             self.modify_vehicle_physics(self.player)
+            
+            # Add debug prints for vehicle dimensions
+            if self.player and self.playerTrailer:
+                # Get bounding boxes
+                tractor_box = self.player.bounding_box
+                trailer_box = self.playerTrailer.bounding_box
+                
+                print("\nActual spawned vehicle dimensions:")
+                print("Tractor:")
+                print(f"- Length: {tractor_box.extent.x * 2:.2f}m")
+                print(f"- Width: {tractor_box.extent.y * 2:.2f}m")
+                print(f"- Height: {tractor_box.extent.z * 2:.2f}m")
+                print(f"- Location: ({tractor_box.location.x:.2f}, {tractor_box.location.y:.2f}, {tractor_box.location.z:.2f})")
+                
+                print("\nTrailer:")
+                print(f"- Length: {trailer_box.extent.x * 2:.2f}m")
+                print(f"- Width: {trailer_box.extent.y * 2:.2f}m")
+                print(f"- Height: {trailer_box.extent.z * 2:.2f}m")
+                print(f"- Location: ({trailer_box.location.x:.2f}, {trailer_box.location.y:.2f}, {trailer_box.location.z:.2f})")
+                
+                # Compare with our calculations
+                print("\nComparison with calculated dimensions:")
+                print(f"Tractor length - Calculated: {self.tractor_length:.2f}m, Actual: {tractor_box.extent.x * 2:.2f}m")
+                print(f"Tractor width - Calculated: {self.tractor_width:.2f}m, Actual: {tractor_box.extent.y * 2:.2f}m")
+                print(f"Trailer length - Calculated: {self.trailer_length:.2f}m, Actual: {trailer_box.extent.x * 2:.2f}m")
+                print(f"Trailer width - Calculated: {self.trailer_width:.2f}m, Actual: {trailer_box.extent.y * 2:.2f}m")
+                print(f"\nFifth wheel offset from rear: {self.fifth_wheel_offset:.2f}m")
+                print(f"Kingpin offset from front: {self.kingpin_offset:.2f}m")
         self.collision_sensor = CollisionSensor(self.player, self.hud)
         self.lane_invasion_sensor = LaneInvasionSensor(self.player, self.hud)
         self.gnss_sensor = GnssSensor(self.player)
@@ -304,7 +334,7 @@ class World(object):
         camera_transforms = [
             # Front camera
             carla.Transform(
-                carla.Location(x=3.6, z=2.5),
+                carla.Location(x=3.6, z=1.8),
                 carla.Rotation(pitch=0, yaw=0)),
             # Rear camera
             carla.Transform(
@@ -379,33 +409,181 @@ class World(object):
             pass
 
     def tick(self, clock):
+        # Check if it's time to randomize the environment
+        current_time = time.time()
+        if current_time - self.last_randomization_time >= self.randomization_interval:
+            self.randomize_environment()
+            self.last_randomization_time = current_time
+
         # Update tilt animation
         self.tilt_angle += self.tilt_speed * self.tilt_direction
         if abs(self.tilt_angle) >= self.max_tilt:
-            self.tilt_direction *= -1  # Reverse direction
-        
-        # Apply rotation to both vehicles
+            self.tilt_direction *= -1
+
         if self.player and self.playerTrailer:
+            # Get current transforms
             tractor_transform = self.player.get_transform()
             trailer_transform = self.playerTrailer.get_transform()
+
+            # Calculate fifth wheel position (pivot point on tractor)
+            fifth_wheel_offset = carla.Location(
+                x=-self.fifth_wheel_offset,  # Negative because it's from rear
+                y=0,
+                z=0
+            )
             
-            # Get the base yaw from the original spawn rotation (90 degrees)
+            # Convert to world space
+            fifth_wheel_world = tractor_transform.transform(fifth_wheel_offset)
+
+            # Calculate kingpin position (pivot point on trailer)
+            kingpin_offset = carla.Location(
+                x=self.kingpin_offset,  # From front of trailer
+                y=0,
+                z=0
+            )
+            
+            # Get base yaw (90 degrees from spawn)
             base_yaw = 90
-            
-            # Update tractor rotation (yaw instead of roll)
+
+            # Update tractor rotation
+            new_tractor_yaw = base_yaw + self.tilt_angle
             tractor_transform.rotation = carla.Rotation(
                 pitch=0,
-                yaw=base_yaw + self.tilt_angle,
-                roll=0)
-            self.player.set_transform(tractor_transform)
+                yaw=new_tractor_yaw,
+                roll=0
+            )
             
-            # Update trailer rotation (opposite direction)
+            # Apply tractor transform
+            self.player.set_transform(tractor_transform)
+
+            # Calculate trailer rotation around fifth wheel
+            new_trailer_yaw = base_yaw - self.tilt_angle  # Opposite direction
+            
+            # Calculate new trailer position
+            # First rotate the kingpin offset by the new trailer angle
+            rotated_kingpin = carla.Transform(
+                carla.Location(),
+                carla.Rotation(yaw=new_trailer_yaw)
+            ).transform(kingpin_offset)
+            
+            # New trailer position should be calculated from the kingpin position
+            # We need to offset by half the trailer length to get the center position
+            trailer_center_offset = carla.Location(
+                x=-self.trailer_length/2,  # Half length back from kingpin
+                y=0,
+                z=0
+            )
+            debug = self.world.debug 
+            # Rotate the center offset by the trailer's angle
+            rotated_center = carla.Transform(
+                carla.Location(),
+                carla.Rotation(yaw=new_trailer_yaw)
+            ).transform(trailer_center_offset)
+            debug.draw_point(
+                fifth_wheel_world,
+                size=0.2,  # Larger size for better visibility
+                color=carla.Color(255, 0, 0),  # Red
+                life_time=0.05
+            )
+            
+            # Blue sphere for kingpin (on trailer)
+            debug.draw_point(
+                kingpin_offset,
+                size=0.2,  # Larger size for better visibility
+                color=carla.Color(0, 0, 255),  # Blue
+                life_time=0.05
+            )
+
+            # Final trailer position: fifth wheel position plus rotated offsets
+            new_trailer_pos = carla.Location(
+                x=fifth_wheel_world.x - rotated_kingpin.x + rotated_center.x,
+                y=fifth_wheel_world.y - rotated_kingpin.y + rotated_center.y,
+                z=trailer_transform.location.z  # Maintain Z height
+            )
+
+            # Update trailer transform
+            trailer_transform.location = new_trailer_pos
             trailer_transform.rotation = carla.Rotation(
                 pitch=0,
-                yaw=base_yaw - self.tilt_angle,  # Opposite direction from tractor
-                roll=0)
+                yaw=new_trailer_yaw,
+                roll=0
+            )
+            
+            # Apply trailer transform
             self.playerTrailer.set_transform(trailer_transform)
-        
+
+            # Debug visualization for vehicle boundaries
+            debug = self.world.debug
+            
+            # Tractor boundaries (Green)
+            tractor_box = self.player.bounding_box
+            corners = [
+                carla.Location(x=tractor_box.location.x + tractor_box.extent.x, y=tractor_box.location.y + tractor_box.extent.y, z=tractor_box.location.z),
+                carla.Location(x=tractor_box.location.x + tractor_box.extent.x, y=tractor_box.location.y - tractor_box.extent.y, z=tractor_box.location.z),
+                carla.Location(x=tractor_box.location.x - tractor_box.extent.x, y=tractor_box.location.y + tractor_box.extent.y, z=tractor_box.location.z),
+                carla.Location(x=tractor_box.location.x - tractor_box.extent.x, y=tractor_box.location.y - tractor_box.extent.y, z=tractor_box.location.z)
+            ]
+            for corner in corners:
+                debug.draw_point(
+                    corner,
+                    size=0.1,
+                    color=carla.Color(0, 255, 0),  # Green
+                    life_time=0.05
+                )
+
+            # Trailer boundaries (Yellow)
+            trailer_box = self.playerTrailer.bounding_box
+            corners = [
+                carla.Location(x=trailer_box.location.x + trailer_box.extent.x, y=trailer_box.location.y + trailer_box.extent.y, z=trailer_box.location.z),
+                carla.Location(x=trailer_box.location.x + trailer_box.extent.x, y=trailer_box.location.y - trailer_box.extent.y, z=trailer_box.location.z),
+                carla.Location(x=trailer_box.location.x - trailer_box.extent.x, y=trailer_box.location.y + trailer_box.extent.y, z=trailer_box.location.z),
+                carla.Location(x=trailer_box.location.x - trailer_box.extent.x, y=trailer_box.location.y - trailer_box.extent.y, z=trailer_box.location.z)
+            ]
+            for corner in corners:
+                debug.draw_point(
+                    corner,
+                    size=0.1,
+                    color=carla.Color(255, 255, 0),  # Yellow
+                    life_time=0.05
+                )
+
+            # Camera positions (Purple)
+            for camera_manager in self.camera_managers:
+                if camera_manager.sensor:
+                    camera_location = camera_manager.sensor.get_location()
+                    debug.draw_point(
+                        camera_location,
+                        size=0.15,
+                        color=carla.Color(255, 0, 255),  # Purple
+                        life_time=0.05
+                    )
+
+            # Fifth wheel pivot point (Orange)
+            fifth_wheel_pos = tractor_transform.transform(carla.Location(
+                x=-self.fifth_wheel_offset,
+                y=0,
+                z=0.5  # Slightly elevated for visibility
+            ))
+            debug.draw_point(
+                fifth_wheel_pos,
+                size=0.2,
+                color=carla.Color(255, 165, 0),  # Orange
+                life_time=0.05
+            )
+
+            # Trailer kingpin pivot point (White)
+            kingpin_pos = trailer_transform.transform(carla.Location(
+                x=self.kingpin_offset,
+                y=0,
+                z=0.5  # Slightly elevated for visibility
+            ))
+            debug.draw_point(
+                kingpin_pos,
+                size=0.2,
+                color=carla.Color(255, 255, 255),  # White
+                life_time=0.05
+            )
+
         self.hud.tick(self, clock)
 
     def render(self, display):
@@ -454,6 +632,29 @@ class World(object):
         if self.playerTrailer is not None:
             self.playerTrailer.destroy()
             
+
+    def randomize_environment(self):
+        """Randomize weather, time of day, and other environmental factors"""
+        # Randomize weather
+        weather = carla.WeatherParameters(
+            cloudiness=random.uniform(0, 100),
+            precipitation=random.uniform(0, 100),
+            precipitation_deposits=random.uniform(0, 100),
+            wind_intensity=random.uniform(0, 100),
+            sun_azimuth_angle=random.uniform(0, 360),
+            sun_altitude_angle=random.uniform(-90, 90),
+            fog_density=random.uniform(0, 100),
+            fog_distance=random.uniform(0, 100),
+            wetness=random.uniform(0, 100)
+        )
+        self.world.set_weather(weather)
+        
+        # Randomize time of day
+        time_of_day = random.randint(0, 23)
+        # self.world.set_time_of_day(time_of_day)  # Commented out as it might not be supported in all CARLA versions
+        
+        self.hud.notification(f'Environment randomized - Time: {time_of_day}:00')
+        self.last_randomization_time = time.time()
 
 
 # ==============================================================================
